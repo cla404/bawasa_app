@@ -5,7 +5,7 @@ import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import 'sign_up.dart';
-import 'components/email_confirmation_dialog.dart';
+import 'consumer_account_main.dart';
 
 class SignIn extends StatefulWidget {
   const SignIn({super.key});
@@ -308,28 +308,34 @@ class _SignInState extends State<SignIn> {
                           print('SignIn: Received state ${state.runtimeType}');
                           if (state is AuthAuthenticated) {
                             print(
-                              'SignIn: User authenticated successfully, should navigate via AuthWrapper',
+                              'SignIn: User authenticated successfully, navigating to main page',
                             );
-                            // The AuthWrapper will handle navigation automatically
-                            // No need to manually navigate here
+                            // Force navigation to main page after successful authentication
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                print(
+                                  'SignIn: Navigating directly to main page',
+                                );
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ConsumerAccountMain(),
+                                  ),
+                                );
+                              }
+                            });
                           } else if (state is AuthError) {
                             print('SignIn: Auth error - ${state.message}');
-                            if (state.message == 'Email not confirmed') {
-                              EmailConfirmationDialog.show(
-                                context,
-                                email: _emailController.text.trim(),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    _getAuthErrorMessage(state.message),
-                                  ),
-                                  backgroundColor: Colors.red,
-                                  duration: const Duration(seconds: 4),
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _getAuthErrorMessage(state.message),
                                 ),
-                              );
-                            }
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
                           }
                         },
                         builder: (context, state) {
