@@ -11,24 +11,44 @@ class CreateUserProfileUseCase
   @override
   Future<UserProfile?> call(CreateUserProfileParams params) async {
     try {
+      print(
+        'CreateUserProfileUseCase: Starting profile creation for ${params.email}',
+      );
+
       // Check if user profile already exists
       final exists = await repository.userProfileExists(params.authUserId);
+      print('CreateUserProfileUseCase: Profile exists: $exists');
+
       if (exists) {
         // Update last login time for existing users
+        print(
+          'CreateUserProfileUseCase: Updating last login for existing user',
+        );
         await repository.updateLastLogin(params.authUserId);
-        return await repository.getUserProfile(params.authUserId);
+        final profile = await repository.getUserProfile(params.authUserId);
+        print(
+          'CreateUserProfileUseCase: Retrieved existing profile: ${profile != null}',
+        );
+        return profile;
       }
 
       // Create new user profile
-      return await repository.createUserProfile(
+      print('CreateUserProfileUseCase: Creating new user profile');
+      final profile = await repository.createUserProfile(
         authUserId: params.authUserId,
         email: params.email,
         fullName: params.fullName,
         phone: params.phone,
         avatarUrl: params.avatarUrl,
       );
+
+      print(
+        'CreateUserProfileUseCase: Profile creation result: ${profile != null}',
+      );
+      return profile;
     } catch (e) {
-      print('Error in CreateUserProfileUseCase: $e');
+      print('CreateUserProfileUseCase: Error in profile creation: $e');
+      print('CreateUserProfileUseCase: Error type: ${e.runtimeType}');
       return null;
     }
   }
