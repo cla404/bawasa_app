@@ -14,27 +14,66 @@ class SupabaseUserRepository implements UserRepository {
     String? phone,
     String? avatarUrl,
   }) async {
-    try {
-      final response = await _supabase
-          .from('users')
-          .insert({
-            'auth_user_id': authUserId,
-            'email': email,
-            'full_name': fullName,
-            'phone': phone,
-            'avatar_url': avatarUrl,
-            'account_type': 'consumer',
-            'is_active': true,
-            'last_login_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
+    print('SupabaseUserRepository: Creating user profile for $email');
+    print('SupabaseUserRepository: Auth User ID: $authUserId');
 
-      return UserProfile.fromJson(response);
-    } catch (e) {
-      print('Error creating user profile: $e');
-      return null;
+    // Try with 'pending' first, fallback to 'consumer' if constraint error
+    // TODO: Remove this fallback after applying the database migration
+    final accountTypes = ['pending', 'consumer'];
+
+    for (final accountType in accountTypes) {
+      try {
+        final userData = {
+          'auth_user_id': authUserId,
+          'email': email,
+          'full_name': fullName,
+          'phone': phone,
+          'avatar_url': avatarUrl,
+          'account_type': accountType,
+          'is_active': true,
+          'last_login_at': DateTime.now().toIso8601String(),
+        };
+
+        print(
+          'SupabaseUserRepository: Trying to insert with account_type: $accountType',
+        );
+        print('SupabaseUserRepository: User data to insert: $userData');
+
+        final response = await _supabase
+            .from('users')
+            .insert(userData)
+            .select()
+            .single();
+
+        print(
+          'SupabaseUserRepository: User profile created successfully with account_type: $accountType',
+        );
+        return UserProfile.fromJson(response);
+      } catch (e) {
+        print(
+          'SupabaseUserRepository: Error creating user profile with $accountType: $e',
+        );
+        print('SupabaseUserRepository: Error type: ${e.runtimeType}');
+
+        if (e.toString().contains('constraint') && accountType == 'pending') {
+          print(
+            'SupabaseUserRepository: Pending account_type not allowed, trying consumer',
+          );
+          print('SupabaseUserRepository: Full error details: $e');
+          continue; // Try next account type
+        } else {
+          print(
+            'SupabaseUserRepository: Fatal error, cannot create user profile',
+          );
+          return null;
+        }
+      }
     }
+
+    print(
+      'SupabaseUserRepository: Failed to create user profile with any account type',
+    );
+    return null;
   }
 
   @override
