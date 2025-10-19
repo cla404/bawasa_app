@@ -8,6 +8,7 @@ import 'meter_reading_page.dart';
 import 'billing_page.dart';
 import 'issues_page.dart';
 import 'profile_page.dart';
+import 'sign_in.dart';
 
 class ConsumerAccountMain extends StatefulWidget {
   const ConsumerAccountMain({super.key});
@@ -25,19 +26,53 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+    print('ConsumerAccountMain: Building main page');
+    print('ConsumerAccountMain: Build timestamp: ${DateTime.now()}');
+
+    // Check authentication state and handle accordingly
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        print('ConsumerAccountMain: Building with state ${state.runtimeType}');
+
+        if (state is! AuthAuthenticated) {
+          print('ConsumerAccountMain: User not authenticated, showing loading');
+          // Force navigation back to sign in if user is not authenticated
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              print('ConsumerAccountMain: Forcing navigation to sign in');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SignIn()),
+              );
+            }
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           );
         }
+
+        print('ConsumerAccountMain: User authenticated, building main content');
+        return BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            print(
+              'ConsumerAccountMain: Auth state changed to ${state.runtimeType}',
+            );
+            if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF5F7FA),
+            body: _getCurrentPage(),
+            bottomNavigationBar: _buildBottomNavigationBar(),
+          ),
+        );
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
-        body: _getCurrentPage(),
-        bottomNavigationBar: _buildBottomNavigationBar(),
-      ),
     );
   }
 
