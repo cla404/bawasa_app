@@ -22,59 +22,105 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print('AuthWrapper: didChangeDependencies called');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        print('AuthWrapper: Current state is ${state.runtimeType}');
-        if (state is AuthLoading) {
-          print('AuthWrapper: Showing loading screen');
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (state is AuthAuthenticated) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        print('AuthWrapper: Listener - State changed to ${state.runtimeType}');
+        print('AuthWrapper: Listener - Timestamp: ${DateTime.now()}');
+        if (state is AuthAuthenticated) {
           print(
-            'AuthWrapper: User authenticated, navigating to ConsumerAccountMain',
+            'AuthWrapper: Listener - User authenticated: ${state.user.email}',
           );
-          return const ConsumerAccountMain();
+          // Force immediate navigation
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              print('AuthWrapper: Forcing navigation to main page');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ConsumerAccountMain(key: ValueKey(state.user.id)),
+                ),
+              );
+            }
+          });
         } else if (state is AuthUnauthenticated) {
-          print('AuthWrapper: User not authenticated, showing SignIn');
-          return const SignIn();
-        } else if (state is AuthError) {
-          print('AuthWrapper: Auth error - ${state.message}');
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    state.message,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<AuthBloc>().add(AuthErrorDismissed());
-                    },
-                    child: const Text('Try Again'),
-                  ),
-                ],
-              ),
-            ),
+          print(
+            'AuthWrapper: Listener - User unauthenticated, navigating to sign in',
           );
-        } else {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          // Force navigation back to sign in page
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              print('AuthWrapper: Forcing navigation to sign in page');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SignIn()),
+              );
+            }
+          });
         }
       },
+      child: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, state) {
+          print('AuthWrapper: Builder - Current state is ${state.runtimeType}');
+          print('AuthWrapper: Builder - State timestamp: ${DateTime.now()}');
+          print('AuthWrapper: Builder - State details: $state');
+
+          if (state is AuthLoading) {
+            print('AuthWrapper: Showing loading screen');
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          } else if (state is AuthUnauthenticated) {
+            print('AuthWrapper: User not authenticated, showing SignIn');
+            return const SignIn();
+          } else if (state is AuthError) {
+            print('AuthWrapper: Auth error - ${state.message}');
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(AuthErrorDismissed());
+                      },
+                      child: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else {
+            // For AuthAuthenticated, show loading while navigation happens
+            print(
+              'AuthWrapper: User authenticated, showing loading while navigating',
+            );
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+        },
+      ),
     );
   }
 }
