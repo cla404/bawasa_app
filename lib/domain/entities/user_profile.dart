@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AccountType { consumer, admin, staff }
+enum AccountType { pending, consumer, admin, staff }
 
 class UserProfile extends Equatable {
   final String id;
@@ -22,7 +22,7 @@ class UserProfile extends Equatable {
     this.fullName,
     this.phone,
     this.avatarUrl,
-    this.accountType = AccountType.consumer,
+    this.accountType = AccountType.pending,
     this.isActive = true,
     this.lastLoginAt,
     required this.createdAt,
@@ -113,8 +113,11 @@ class UserProfile extends Equatable {
       case 'staff':
         return AccountType.staff;
       case 'consumer':
-      default:
         return AccountType.consumer;
+      case 'pending':
+        return AccountType.pending;
+      default:
+        return AccountType.pending;
     }
   }
 }
