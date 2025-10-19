@@ -4,7 +4,6 @@ import 'core/config/supabase_config.dart';
 import 'core/injection/injection_container.dart';
 import 'presentation/pages/auth_wrapper.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
-import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/meter_reading_bloc.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
@@ -94,19 +93,49 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
         uri.toString().contains('refresh_token') ||
         uri.toString().contains('type=recovery') ||
         uri.toString().contains('type=signup')) {
-      // Show success message - Supabase will handle the auth automatically
+      // Handle email verification without auto-login
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email confirmed successfully! Welcome to BAWASA.'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        // Trigger auth state check to update the UI
-        context.read<AuthBloc>().add(AuthCheckRequested());
+        _handleEmailVerification();
       }
+    }
+  }
+
+  void _handleEmailVerification() async {
+    print('Handling email verification - preventing auto-login');
+
+    // Wait a moment for Supabase to complete the auto-login
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    // Check if user is currently authenticated (from auto-login)
+    final currentUser = SupabaseConfig.client.auth.currentUser;
+    if (currentUser != null) {
+      print('User is auto-logged in after email verification');
+      print('User email: ${currentUser.email}');
+      print('User ID: ${currentUser.id}');
+      print('User confirmed: ${currentUser.emailConfirmedAt != null}');
+    } else {
+      print('No user found during email verification');
+    }
+
+    // Sign out the user to prevent auto-login
+    try {
+      await SupabaseConfig.client.auth.signOut();
+      print('User signed out after email verification');
+    } catch (e) {
+      print('Error signing out after email verification: $e');
+    }
+
+    // Show success message asking user to sign in
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Email confirmed successfully! Please sign in to continue.',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
 
