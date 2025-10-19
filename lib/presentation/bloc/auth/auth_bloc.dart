@@ -17,6 +17,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final CreateUserProfileUseCase _createUserProfileUseCase;
   final AuthRepository _authRepository;
   StreamSubscription<domain.User?>? _authStateSubscription;
+  final Set<String> _profileCreationInProgress = <String>{};
 
   AuthBloc({
     SignInUseCase? signInUseCase,
@@ -113,10 +114,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         'AuthBloc: Current user retrieved after $attempts attempts: ${user?.email ?? 'null'}',
       );
       if (user != null) {
-        // Only create/update user profile for confirmed users
-        if (user.emailConfirmedAt != null) {
+        // Create/update user profile for all authenticated users (prevent duplicates)
+        if (!_profileCreationInProgress.contains(user.id)) {
+          _profileCreationInProgress.add(user.id);
           try {
             print('AuthBloc: Creating/updating user profile for ${user.email}');
+            print(
+              'AuthBloc: User details - ID: ${user.id}, Email: ${user.email}',
+            );
+            print('AuthBloc: User fullName: ${user.fullName}');
+            print('AuthBloc: User phone: ${user.phone}');
+            print('AuthBloc: User avatarUrl: ${user.avatarUrl}');
+
             final profile = await _createUserProfileUseCase(
               CreateUserProfileParams(
                 authUserId: user.id,
@@ -126,25 +135,50 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 avatarUrl: user.avatarUrl,
               ),
             );
+
             if (profile != null) {
               print('AuthBloc: User profile created/updated successfully');
+              print('AuthBloc: Profile ID: ${profile.id}');
+              print('AuthBloc: Profile account type: ${profile.accountType}');
+              print('AuthBloc: Emitting AuthAuthenticated state');
+              emit(AuthAuthenticated(user));
+              print('AuthBloc: AuthAuthenticated state emitted successfully');
             } else {
-              print(
-                'AuthBloc: User profile creation failed, but continuing with sign in',
+              print('AuthBloc: User profile creation failed, emitting error');
+              emit(
+                AuthError(
+                  message: 'Failed to create user profile. Please try again.',
+                ),
               );
             }
           } catch (e) {
             print('AuthBloc: Error creating/updating user profile: $e');
-            // Don't fail the sign-in if profile creation fails
+            print('AuthBloc: Error type: ${e.runtimeType}');
+            emit(
+              AuthError(
+                message: 'Failed to create user profile: ${e.toString()}',
+              ),
+            );
+          } finally {
+            _profileCreationInProgress.remove(user.id);
           }
         } else {
           print(
-            'AuthBloc: User email not confirmed yet, skipping profile creation',
+            'AuthBloc: Profile creation already in progress for ${user.email}',
           );
+          // Wait for profile creation to complete
+          while (_profileCreationInProgress.contains(user.id)) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+          print(
+            'AuthBloc: Profile creation completed, emitting AuthAuthenticated',
+          );
+          print(
+            'AuthBloc: User details - ID: ${user.id}, Email: ${user.email}',
+          );
+          emit(AuthAuthenticated(user));
+          print('AuthBloc: AuthAuthenticated state emitted successfully');
         }
-
-        print('AuthBloc: Emitting AuthAuthenticated state');
-        emit(AuthAuthenticated(user));
       } else {
         print('AuthBloc: User is null after successful sign in and retries');
         emit(AuthError(message: 'Sign in successful but user not found'));
@@ -190,13 +224,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SignOutRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print('AuthBloc: Sign out requested');
     emit(AuthLoading());
 
     final result = await _signOutUseCase();
+    print(
+      'AuthBloc: Sign out result - Success: ${result.isSuccess}, Message: ${result.message}',
+    );
 
     if (result.isSuccess) {
+      print(
+        'AuthBloc: Sign out successful, clearing profile creation tracking',
+      );
+      // Clear profile creation tracking
+      _profileCreationInProgress.clear();
+      print('AuthBloc: Emitting AuthUnauthenticated state');
       emit(AuthUnauthenticated());
+      print('AuthBloc: AuthUnauthenticated state emitted successfully');
     } else {
+      print('AuthBloc: Sign out failed - ${result.message}');
       emit(
         AuthError(
           message: result.message ?? 'Sign out failed',
@@ -260,16 +306,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthUnauthenticated());
   }
 
-  void _onAuthStateChanged(AuthStateChanged event, Emitter<AuthState> emit) {
+  Future<void> _onAuthStateChanged(
+    AuthStateChanged event,
+    Emitter<AuthState> emit,
+  ) async {
     print(
       'AuthBloc: Handling auth state change - User: ${event.user?.email ?? 'null'}',
     );
     if (event.user != null) {
-      // Only create/update user profile for confirmed users
-      // Skip profile creation for unconfirmed users (e.g., during sign-up before email confirmation)
-      if (event.user!.emailConfirmedAt != null) {
-        print('AuthBloc: User email confirmed, creating/updating profile');
-        _createUserProfileUseCase(
+      // Only emit AuthAuthenticated if we're not already in an authenticated state
+      // This prevents duplicate emissions during sign-in process
+      final currentState = state;
+      if (currentState is! AuthAuthenticated ||
+          currentState.user.id != event.user!.id) {
+        print('AuthBloc: Emitting AuthAuthenticated from auth state change');
+        print(
+          'AuthBloc: Auth state change - User ID: ${event.user!.id}, Email: ${event.user!.email}',
+        );
+
+        // Create/update user profile for all authenticated users (prevent duplicates)
+        if (!_profileCreationInProgress.contains(event.user!.id)) {
+          _profileCreationInProgress.add(event.user!.id);
+          try {
+            print(
+              'AuthBloc: Creating/updating user profile for ${event.user!.email}',
+            );
+            print(
+              'AuthBloc: User details - ID: ${event.user!.id}, Email: ${event.user!.email}',
+            );
+            print('AuthBloc: User fullName: ${event.user!.fullName}');
+            print('AuthBloc: User phone: ${event.user!.phone}');
+            print('AuthBloc: User avatarUrl: ${event.user!.avatarUrl}');
+
+            final profile = await _createUserProfileUseCase(
               CreateUserProfileParams(
                 authUserId: event.user!.id,
                 email: event.user!.email,
@@ -277,31 +346,53 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 phone: event.user!.phone,
                 avatarUrl: event.user!.avatarUrl,
               ),
-            )
-            .then((profile) {
-              if (profile != null) {
-                print(
-                  'AuthBloc: User profile created/updated successfully on auth state change',
-                );
-              } else {
-                print(
-                  'AuthBloc: User profile creation failed on auth state change, but continuing with authentication',
-                );
-              }
-            })
-            .catchError((e) {
-              print(
-                'AuthBloc: Error creating/updating user profile on auth state change: $e',
+            );
+
+            if (profile != null) {
+              print('AuthBloc: User profile created/updated successfully');
+              print('AuthBloc: Profile ID: ${profile.id}');
+              print('AuthBloc: Profile account type: ${profile.accountType}');
+              print('AuthBloc: Emitting AuthAuthenticated state');
+              emit(AuthAuthenticated(event.user!));
+              print('AuthBloc: AuthAuthenticated state emitted successfully');
+            } else {
+              print('AuthBloc: User profile creation failed, emitting error');
+              emit(
+                AuthError(
+                  message: 'Failed to create user profile. Please try again.',
+                ),
               );
-              // Don't fail authentication if profile creation fails
-            });
+            }
+          } catch (e) {
+            print('AuthBloc: Error creating/updating user profile: $e');
+            print('AuthBloc: Error type: ${e.runtimeType}');
+            emit(
+              AuthError(
+                message: 'Failed to create user profile: ${e.toString()}',
+              ),
+            );
+          } finally {
+            _profileCreationInProgress.remove(event.user!.id);
+          }
+        } else {
+          print(
+            'AuthBloc: Profile creation already in progress for ${event.user!.email}',
+          );
+          // Wait for profile creation to complete
+          while (_profileCreationInProgress.contains(event.user!.id)) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+          print(
+            'AuthBloc: Profile creation completed, emitting AuthAuthenticated',
+          );
+          emit(AuthAuthenticated(event.user!));
+          print('AuthBloc: AuthAuthenticated state emitted successfully');
+        }
       } else {
         print(
-          'AuthBloc: User email not confirmed yet, skipping profile creation',
+          'AuthBloc: Already authenticated with same user, skipping emission',
         );
       }
-
-      emit(AuthAuthenticated(event.user!));
     } else {
       emit(AuthUnauthenticated());
     }
