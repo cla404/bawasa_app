@@ -145,15 +145,9 @@ class AuthRepositoryImpl implements AuthRepository {
       fullName: supabaseUser.userMetadata?['full_name'],
       phone: supabaseUser.userMetadata?['phone'],
       avatarUrl: supabaseUser.userMetadata?['avatar_url'],
-      createdAt: supabaseUser.createdAt != null
-          ? DateTime.tryParse(supabaseUser.createdAt!)
-          : null,
-      updatedAt: supabaseUser.updatedAt != null
-          ? DateTime.tryParse(supabaseUser.updatedAt!)
-          : null,
-      emailConfirmedAt: supabaseUser.emailConfirmedAt != null
-          ? DateTime.tryParse(supabaseUser.emailConfirmedAt!)
-          : null,
+      createdAt: DateTime.tryParse(supabaseUser.createdAt ?? ''),
+      updatedAt: DateTime.tryParse(supabaseUser.updatedAt ?? ''),
+      emailConfirmedAt: DateTime.tryParse(supabaseUser.emailConfirmedAt ?? ''),
     );
   }
 
