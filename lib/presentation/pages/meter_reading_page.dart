@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/meter_reading_bloc.dart';
+import '../bloc/consumer_bloc.dart';
+import '../bloc/auth/auth_bloc.dart';
+import '../bloc/auth/auth_state.dart';
 import '../../services/camera_service.dart';
 import 'dart:io';
 
@@ -33,6 +36,16 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
         '📱 [MeterReadingPage] Dispatching LoadLatestMeterReading event...',
       );
       context.read<MeterReadingBloc>().add(LoadLatestMeterReading());
+
+      // Load consumer details
+      print('📱 [MeterReadingPage] Dispatching LoadConsumerDetails event...');
+      // Get current user ID from auth state
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        context.read<ConsumerBloc>().add(
+          LoadConsumerDetails(authState.user.id),
+        );
+      }
     });
   }
 
@@ -260,285 +273,189 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
         }
       },
       child: BlocBuilder<MeterReadingBloc, MeterReadingState>(
-        builder: (context, state) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFF5F7FA),
-            appBar: AppBar(
-              title: const Text(
-                'Meter Reading',
-                style: TextStyle(
-                  color: Color(0xFF1A3A5C),
-                  fontWeight: FontWeight.bold,
+        builder: (context, meterReadingState) {
+          return BlocBuilder<ConsumerBloc, ConsumerState>(
+            builder: (context, consumerState) {
+              return Scaffold(
+                backgroundColor: const Color(0xFFF5F7FA),
+                appBar: AppBar(
+                  title: const Text(
+                    'Meter Reading',
+                    style: TextStyle(
+                      color: Color(0xFF1A3A5C),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  iconTheme: const IconThemeData(color: Color(0xFF1A3A5C)),
                 ),
-              ),
-              backgroundColor: Colors.white,
-              elevation: 0,
-              iconTheme: const IconThemeData(color: Color(0xFF1A3A5C)),
-            ),
-            body: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Current Reading Card
-                    _buildCurrentReadingCard(state),
-                    const SizedBox(height: 24),
-
-                    // Next Reading Info Card
-                    _buildNextReadingInfoCard(state),
-                    const SizedBox(height: 24),
-
-                    // Submit Reading Form
-                    _buildSubmitReadingForm(state),
-                    const SizedBox(height: 24),
-
-                    // Recent Readings
-                    _buildRecentReadingsSection(state),
-                  ],
+                body: SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Consumer Details Card
+                        _buildConsumerDetailsCard(consumerState),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildCurrentReadingCard(MeterReadingState state) {
-    String lastReading = 'No readings yet';
-    String lastDate = 'N/A';
-
-    if (state is MeterReadingLoaded && state.latestReading != null) {
-      final reading = state.latestReading!;
-      lastReading = '${reading.readingValue.toStringAsFixed(0)} cubic meters';
-      lastDate =
-          '${reading.readingDate.day}/${reading.readingDate.month}/${reading.readingDate.year}';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A90E2).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.speed,
-                  color: Color(0xFF4A90E2),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Text(
-                  'Current Reading',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A3A5C),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Last Reading:',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-              ),
-              Text(
-                lastReading,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Date:',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-              ),
-              Text(
-                lastDate,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNextReadingInfoCard(MeterReadingState state) {
-    if (state is MeterReadingLoaded && state.latestReading != null) {
-      final lastReadingDate = state.latestReading!.readingDate;
-      final oneMonthFromLastReading = DateTime(
-        lastReadingDate.year,
-        lastReadingDate.month + 1,
-        lastReadingDate.day,
-      );
-
-      final daysRemaining = oneMonthFromLastReading
-          .difference(DateTime.now())
-          .inDays;
-      final canSubmitNow =
-          DateTime.now().isAfter(oneMonthFromLastReading) ||
-          DateTime.now().isAtSameMomentAs(oneMonthFromLastReading);
-
+  Widget _buildConsumerDetailsCard(ConsumerState state) {
+    if (state is ConsumerLoading) {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: canSubmitNow
-              ? Colors.green.withOpacity(0.1)
-              : Colors.orange.withOpacity(0.1),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: canSubmitNow
-                ? Colors.green.withOpacity(0.3)
-                : Colors.orange.withOpacity(0.3),
-            width: 1,
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Row(
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (state is ConsumerError) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: canSubmitNow
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.orange.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                canSubmitNow ? Icons.check_circle : Icons.schedule,
-                color: canSubmitNow ? Colors.green : Colors.orange,
-                size: 24,
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading consumer details',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A3A5C),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    canSubmitNow ? 'Ready to Submit' : 'Next Reading Available',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: canSubmitNow
-                          ? Colors.green.shade700
-                          : Colors.orange.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    canSubmitNow
-                        ? 'You can submit a new meter reading now'
-                        : 'Next submission allowed on: ${oneMonthFromLastReading.day}/${oneMonthFromLastReading.month}/${oneMonthFromLastReading.year}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: canSubmitNow
-                          ? Colors.green.shade600
-                          : Colors.orange.shade600,
-                    ),
-                  ),
-                  if (!canSubmitNow && daysRemaining > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '$daysRemaining days remaining',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange.shade600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+            const SizedBox(height: 8),
+            Text(
+              state.message,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       );
     }
 
-    // If no readings exist, show that user can submit
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+    if (state is ConsumerLoaded) {
+      final consumer = state.consumer;
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: const Icon(Icons.add_circle, color: Colors.green, size: 24),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  'First Reading',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4A90E2).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFF4A90E2),
+                    size: 24,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'You can submit your first meter reading',
-                  style: TextStyle(fontSize: 14, color: Colors.green),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Text(
+                    'Consumer Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A3A5C),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 20),
+            _buildDetailRow('Water Meter No.', consumer.waterMeterNo),
+            const SizedBox(height: 12),
+            _buildDetailRow('Full Name', consumer.fullName),
+            const SizedBox(height: 12),
+            _buildDetailRow('Address', consumer.fullAddress),
+            const SizedBox(height: 12),
+            _buildDetailRow('Phone', consumer.phone),
+            const SizedBox(height: 12),
+            _buildDetailRow('Email', consumer.email),
+            const SizedBox(height: 12),
+            _buildDetailRow(
+              'Current Reading',
+              '${consumer.currentReading.toStringAsFixed(0)} cubic meters',
+            ),
+            const SizedBox(height: 12),
+            _buildDetailRow(
+              'Previous Reading',
+              '${consumer.previousReading.toStringAsFixed(0)} cubic meters',
+            ),
+            const SizedBox(height: 12),
+            _buildDetailRow(
+              'Consumption',
+              '${consumer.consumptionCubicMeters.toStringAsFixed(0)} cubic meters',
+            ),
+            const SizedBox(height: 12),
+            _buildDetailRow(
+              'Amount Due',
+              '₱${consumer.amountCurrentBilling.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 12),
+            _buildDetailRow('Billing Month', consumer.billingMonth),
+            const SizedBox(height: 12),
+            _buildDetailRow('Due Date', consumer.dueDate),
+            const SizedBox(height: 12),
+            _buildDetailRow('Status', consumer.status),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildSubmitReadingForm(MeterReadingState state) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -553,332 +470,35 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Submit New Reading',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Meter Type Dropdown
-          const Text(
-            'Meter Type',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedMeterType,
-                isExpanded: true,
-                items: _meterTypes.map((String type) {
-                  return DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(type),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedMeterType = newValue;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Reading Input
-          const Text(
-            'Meter Reading',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _readingController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              hintText: 'Enter current reading',
-              suffixText: 'cubic meters',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF4A90E2)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Date Picker
-          const Text(
-            'Reading Date',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _selectDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: Color(0xFF6B7280)),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Photo Capture Section
-          const Text(
-            'Meter Photo (Required)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _showPhotoOptions,
-            child: Container(
-              height: 200,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: _selectedPhoto != null
-                      ? const Color(0xFF4A90E2)
-                      : Colors.grey.withOpacity(0.3),
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _selectedPhoto != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.file(
-                        _selectedPhoto!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.camera_alt,
-                          size: 48,
-                          color: Colors.grey.withOpacity(0.6),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap to take a photo of your meter',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Notes Input
-          const Text(
-            'Notes (Optional)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _notesController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Add any notes about the reading...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF4A90E2)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Submit Button
-          Builder(
-            builder: (context) {
-              final isLoading = state is MeterReadingLoading;
-              bool canSubmit = true;
-              String? submitButtonText = 'Submit Reading';
-              Color buttonColor = const Color(0xFF4A90E2);
-
-              // Check if photo is missing
-              if (_selectedPhoto == null) {
-                canSubmit = false;
-                submitButtonText = 'Photo Required';
-                buttonColor = Colors.grey;
-              }
-
-              // Check if user can submit reading (must be at least 1 month from last reading)
-              if (state is MeterReadingLoaded && state.latestReading != null) {
-                final lastReadingDate = state.latestReading!.readingDate;
-                final oneMonthFromLastReading = DateTime(
-                  lastReadingDate.year,
-                  lastReadingDate.month + 1,
-                  lastReadingDate.day,
-                );
-
-                if (DateTime.now().isBefore(oneMonthFromLastReading)) {
-                  canSubmit = false;
-                  final daysRemaining = oneMonthFromLastReading
-                      .difference(DateTime.now())
-                      .inDays;
-                  submitButtonText = 'Next reading in $daysRemaining days';
-                  buttonColor = Colors.grey;
-                }
-              }
-
-              return SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (isLoading || !canSubmit) ? null : _submitReading,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          submitButtonText,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              );
-            },
-          ),
-        ],
+      child: const Center(
+        child: Text(
+          'No consumer details available',
+          style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+        ),
       ),
     );
   }
 
-  Widget _buildRecentReadingsSection(MeterReadingState state) {
-    return Column(
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recent Readings',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+        SizedBox(
+          width: 120,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
           ),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF1A3A5C)),
           ),
-          child: state is MeterReadingLoading
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              : state is MeterReadingLoaded && state.readings.isNotEmpty
-              ? Column(
-                  children: state.readings.take(5).map((reading) {
-                    final isLast =
-                        state.readings.indexOf(reading) ==
-                        state.readings.take(5).length - 1;
-                    return Column(
-                      children: [
-                        _buildReadingItem(
-                          reading: reading.readingValue.toStringAsFixed(0),
-                          date:
-                              '${reading.readingDate.day}/${reading.readingDate.month}/${reading.readingDate.year}',
-                          status: reading.status,
-                          statusColor: _getStatusColor(reading.status),
-                        ),
-                        if (!isLast) const Divider(height: 24),
-                      ],
-                    );
-                  }).toList(),
-                )
-              : const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text(
-                    'No meter readings found',
-                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
-                  ),
-                ),
         ),
       ],
     );

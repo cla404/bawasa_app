@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/config/supabase_config.dart';
 import 'core/injection/injection_container.dart';
+import 'data/repositories/supabase_accounts_auth_repository_impl.dart';
 import 'presentation/pages/auth_wrapper.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/meter_reading_bloc.dart';
+import 'presentation/bloc/consumer_bloc.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 
@@ -12,6 +14,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseConfig.initialize();
   await init();
+
+  // Initialize Supabase accounts auth repository
+  final supabaseAccountsAuthRepo = sl<SupabaseAccountsAuthRepositoryImpl>();
+  await supabaseAccountsAuthRepo.loadUserFromStorage();
+
   runApp(const MyApp());
 }
 
@@ -26,6 +33,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<MeterReadingBloc>(
           create: (context) => sl<MeterReadingBloc>(),
         ),
+        BlocProvider<ConsumerBloc>(create: (context) => sl<ConsumerBloc>()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

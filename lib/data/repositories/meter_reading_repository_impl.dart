@@ -3,7 +3,9 @@ import '../../domain/repositories/meter_reading_repository.dart';
 import '../../services/supabase_config.dart';
 import '../../services/photo_upload_service.dart';
 import '../../core/error/failures.dart';
+import '../../data/repositories/supabase_accounts_auth_repository_impl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:get_it/get_it.dart';
 import 'dart:io';
 
 class MeterReadingRepositoryImpl implements MeterReadingRepository {
@@ -14,36 +16,39 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
   Future<List<MeterReading>> getUserMeterReadings() async {
     try {
       print('🔍 [MeterReadingRepository] Fetching user meter readings...');
-      print(
-        '🔍 [MeterReadingRepository] Current user: ${_supabase.auth.currentUser?.id}',
-      );
 
-      // Check if user is authenticated
-      final currentUser = _supabase.auth.currentUser;
+      // Get current user from Supabase accounts auth
+      final supabaseAccountsAuthRepo =
+          GetIt.instance<SupabaseAccountsAuthRepositoryImpl>();
+      final currentUser = supabaseAccountsAuthRepo.getCurrentUser();
+
       if (currentUser == null) {
         throw ServerFailure('User not authenticated. Please sign in first.');
       }
 
-      // Get the user profile ID from the users table
-      final userProfileResponse = await _supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', currentUser.id)
-          .maybeSingle();
+      print('🔍 [MeterReadingRepository] Current user: ${currentUser.email}');
 
-      if (userProfileResponse == null) {
+      // Get the consumer_id from the accounts table using the custom user ID
+      final accountResponse = await _supabase
+          .from('accounts')
+          .select('consumer_id')
+          .eq('id', currentUser.id)
+          .single();
+
+      if (accountResponse['consumer_id'] == null) {
         throw ServerFailure(
-          'User profile not found. Please complete your profile setup.',
+          'Consumer account not found. Please contact support.',
         );
       }
 
-      final userProfileId = userProfileResponse['id'] as String;
-      print('🔍 [MeterReadingRepository] User profile ID: $userProfileId');
+      final consumerId = accountResponse['consumer_id'] as String;
+      print('🔍 [MeterReadingRepository] Found consumer_id: $consumerId');
 
+      // Now fetch meter readings using the consumer_id (UUID)
       final response = await _supabase
           .from('meter_readings')
           .select()
-          .eq('user_id_ref', userProfileId) // Filter by current user
+          .eq('user_id_ref', consumerId) // Use the consumer_id UUID
           .order('reading_date', ascending: false);
 
       print(
@@ -244,36 +249,39 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
   Future<MeterReading?> getLatestMeterReading() async {
     try {
       print('🔍 [MeterReadingRepository] Fetching latest meter reading...');
-      print(
-        '🔍 [MeterReadingRepository] Current user: ${_supabase.auth.currentUser?.id}',
-      );
 
-      // Check if user is authenticated
-      final currentUser = _supabase.auth.currentUser;
+      // Get current user from Supabase accounts auth
+      final supabaseAccountsAuthRepo =
+          GetIt.instance<SupabaseAccountsAuthRepositoryImpl>();
+      final currentUser = supabaseAccountsAuthRepo.getCurrentUser();
+
       if (currentUser == null) {
         throw ServerFailure('User not authenticated. Please sign in first.');
       }
 
-      // Get the user profile ID from the users table
-      final userProfileResponse = await _supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', currentUser.id)
-          .maybeSingle();
+      print('🔍 [MeterReadingRepository] Current user: ${currentUser.email}');
 
-      if (userProfileResponse == null) {
+      // Get the consumer_id from the accounts table using the custom user ID
+      final accountResponse = await _supabase
+          .from('accounts')
+          .select('consumer_id')
+          .eq('id', currentUser.id)
+          .single();
+
+      if (accountResponse['consumer_id'] == null) {
         throw ServerFailure(
-          'User profile not found. Please complete your profile setup.',
+          'Consumer account not found. Please contact support.',
         );
       }
 
-      final userProfileId = userProfileResponse['id'] as String;
-      print('🔍 [MeterReadingRepository] User profile ID: $userProfileId');
+      final consumerId = accountResponse['consumer_id'] as String;
+      print('🔍 [MeterReadingRepository] Found consumer_id: $consumerId');
 
+      // Now fetch latest meter reading using the consumer_id (UUID)
       final response = await _supabase
           .from('meter_readings')
           .select()
-          .eq('user_id_ref', userProfileId) // Filter by current user
+          .eq('user_id_ref', consumerId) // Use the consumer_id UUID
           .order('reading_date', ascending: false)
           .limit(1);
 
