@@ -2,15 +2,19 @@ import 'package:get_it/get_it.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/meter_reading_repository.dart';
 import '../../domain/repositories/user_repository.dart';
+import '../../domain/repositories/consumer_repository.dart';
 import '../../domain/usecases/auth_usecases.dart';
 import '../../domain/usecases/meter_reading_usecases.dart';
 import '../../domain/usecases/user_usecases.dart';
+import '../../domain/usecases/consumer_usecases.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
-import '../../data/repositories/auth_repository_impl.dart';
+import '../../data/repositories/supabase_accounts_auth_repository_impl.dart';
 import '../../data/repositories/meter_reading_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
+import '../../data/repositories/consumer_repository_impl.dart';
 import '../../presentation/bloc/auth/auth_bloc.dart';
 import '../../presentation/bloc/meter_reading_bloc.dart';
+import '../../presentation/bloc/consumer_bloc.dart';
 import '../config/supabase_config.dart';
 
 final sl = GetIt.instance;
@@ -18,7 +22,10 @@ final sl = GetIt.instance;
 Future<void> init() async {
   // Features - Auth
   sl.registerLazySingleton(() => SupabaseAuthDataSource(SupabaseConfig.client));
-  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
+  sl.registerLazySingleton<AuthRepository>(
+    () => SupabaseAccountsAuthRepositoryImpl(),
+  );
+  sl.registerLazySingleton(() => SupabaseAccountsAuthRepositoryImpl());
 
   // Features - User Profile
   sl.registerLazySingleton<UserRepository>(() => SupabaseUserRepository());
@@ -27,6 +34,9 @@ Future<void> init() async {
   sl.registerLazySingleton<MeterReadingRepository>(
     () => MeterReadingRepositoryImpl(),
   );
+
+  // Features - Consumer
+  sl.registerLazySingleton<ConsumerRepository>(() => ConsumerRepositoryImpl());
 
   // Use cases - Auth
   sl.registerLazySingleton(() => SignInUseCase(sl()));
@@ -48,6 +58,10 @@ Future<void> init() async {
   sl.registerLazySingleton(() => UpdateMeterReadingUseCase(sl()));
   sl.registerLazySingleton(() => DeleteMeterReadingUseCase(sl()));
 
+  // Use cases - Consumer
+  sl.registerLazySingleton(() => GetConsumerDetailsUseCase(sl()));
+  sl.registerLazySingleton(() => GetConsumerByUserIdUseCase(sl()));
+
   // Blocs
   sl.registerLazySingleton(() => AuthBloc());
   sl.registerLazySingleton(
@@ -59,5 +73,8 @@ Future<void> init() async {
       updateMeterReadingUseCase: sl(),
       deleteMeterReadingUseCase: sl(),
     ),
+  );
+  sl.registerLazySingleton(
+    () => ConsumerBloc(getConsumerByUserIdUseCase: sl()),
   );
 }
