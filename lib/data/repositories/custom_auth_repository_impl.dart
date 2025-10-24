@@ -130,6 +130,11 @@ class CustomAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  CustomUser? getCurrentCustomUser() {
+    return _currentUser;
+  }
+
+  @override
   Stream<domain.User?> get authStateChanges {
     // For custom authentication, we'll use a simple stream that emits the current user
     // In a real implementation, you might want to implement proper session management
@@ -208,12 +213,28 @@ class CustomAuthRepositoryImpl implements AuthRepository {
       final supabase = SupabaseConfig.client;
       final now = DateTime.now().toIso8601String();
 
-      await supabase
-          .from('accounts')
-          .update({'last_signed_in': now})
-          .eq('id', userId);
+      // Check if this is a meter reader (UUID format) or consumer (integer format)
+      final isMeterReader = userId.contains('-'); // UUIDs contain hyphens
 
-      print('✅ [CustomAuthRepository] Successfully updated last_signed_in');
+      if (isMeterReader) {
+        // Update meter_reader_accounts table
+        await supabase
+            .from('meter_reader_accounts')
+            .update({'last_signed_in': now})
+            .eq('id', userId);
+        print(
+          '✅ [CustomAuthRepository] Successfully updated last_signed_in for meter reader',
+        );
+      } else {
+        // Update accounts table
+        await supabase
+            .from('accounts')
+            .update({'last_signed_in': now})
+            .eq('id', userId);
+        print(
+          '✅ [CustomAuthRepository] Successfully updated last_signed_in for consumer',
+        );
+      }
     } catch (e) {
       print('❌ [CustomAuthRepository] Error updating last_signed_in: $e');
     }
