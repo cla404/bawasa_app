@@ -141,6 +141,11 @@ class SupabaseAccountsAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  CustomUser? getCurrentCustomUser() {
+    return _currentUser;
+  }
+
+  @override
   Stream<domain.User?> get authStateChanges {
     // Return a stream that emits the current user
     // This is a simplified implementation - in a real app you might want
@@ -185,7 +190,7 @@ class SupabaseAccountsAuthRepositoryImpl implements AuthRepository {
           .update({'last_signed_in': DateTime.now().toIso8601String()})
           .eq('id', accountId);
       print(
-        '✅ [SupabaseAccountsAuthRepository] Last signed in timestamp updated',
+        '✅ [SupabaseAccountsAuthRepository] Last signed in timestamp updated for user ID: $accountId',
       );
     } catch (e) {
       print(
