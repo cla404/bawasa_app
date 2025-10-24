@@ -5,7 +5,7 @@ import '../core/config/supabase_config.dart';
 class SupabaseAccountsAuthService {
   static final SupabaseClient _supabase = SupabaseConfig.client;
 
-  /// Sign in using credentials from the accounts table
+  /// Sign in using credentials from the unified accounts table
   static Future<Map<String, dynamic>> signInWithAccounts({
     required String email,
     required String password,
@@ -13,14 +13,14 @@ class SupabaseAccountsAuthService {
     try {
       print('🔐 [SupabaseAccountsAuth] Attempting sign in for: $email');
 
-      // Query the accounts table for the user
-      final response = await _supabase
+      // Find user in the unified accounts table
+      final accountResponse = await _supabase
           .from('accounts')
           .select('*')
           .eq('email', email)
           .maybeSingle();
 
-      if (response == null) {
+      if (accountResponse == null) {
         print('❌ [SupabaseAccountsAuth] User not found: $email');
         return {'success': false, 'error': 'Invalid login credentials'};
       }
@@ -28,7 +28,10 @@ class SupabaseAccountsAuthService {
       print('✅ [SupabaseAccountsAuth] User found in accounts table');
 
       // Verify password using bcrypt
-      final isPasswordValid = BCrypt.checkpw(password, response['password']);
+      final isPasswordValid = BCrypt.checkpw(
+        password,
+        accountResponse['password'],
+      );
 
       if (!isPasswordValid) {
         print('❌ [SupabaseAccountsAuth] Invalid password for: $email');
@@ -37,32 +40,76 @@ class SupabaseAccountsAuthService {
 
       print('✅ [SupabaseAccountsAuth] Password verified successfully');
 
-      // Get consumer data from bawasa_consumers table
-      final consumerResponse = await _supabase
-          .from('bawasa_consumers')
-          .select('*')
-          .eq('id', response['consumer_id'])
-          .maybeSingle();
+      // Get user type from database
+      final dbUserType = accountResponse['user_type'];
+      print('🔍 [SupabaseAccountsAuth] User type from database: $dbUserType');
 
-      if (consumerResponse == null) {
-        print('❌ [SupabaseAccountsAuth] Consumer data not found');
-        return {'success': false, 'error': 'Consumer data not found'};
+      Map<String, dynamic> userData;
+      String userType = dbUserType ?? 'consumer';
+
+      if (userType == 'consumer') {
+        // Get consumer data from bawasa_consumers table using consumer_id foreign key
+        final consumerResponse = await _supabase
+            .from('bawasa_consumers')
+            .select('*')
+            .eq('consumer_id', accountResponse['id'])
+            .maybeSingle();
+
+        if (consumerResponse == null) {
+          print('❌ [SupabaseAccountsAuth] Consumer data not found');
+          return {'success': false, 'error': 'Consumer data not found'};
+        }
+
+        print('✅ [SupabaseAccountsAuth] Consumer data retrieved');
+
+        // Create a custom user object for consumer
+        userData = {
+          'id': accountResponse['id']?.toString() ?? '',
+          'email': accountResponse['email'] ?? '',
+          'full_name': accountResponse['full_name'] ?? '',
+          'phone': accountResponse['mobile_no']?.toString() ?? '',
+          'full_address': accountResponse['full_address'] ?? '',
+          'consumer_id': consumerResponse['id']?.toString() ?? '',
+          'water_meter_no': consumerResponse['water_meter_no'] ?? '',
+          'created_at': accountResponse['created_at']?.toString() ?? '',
+          'updated_at': accountResponse['updated_at']?.toString() ?? '',
+          'user_type': userType,
+        };
+      } else if (userType == 'meter_reader') {
+        // Get meter reader data from bawasa_meter_reader table using reader_id foreign key
+        final meterReaderResponse = await _supabase
+            .from('bawasa_meter_reader')
+            .select('*')
+            .eq('reader_id', accountResponse['id'])
+            .maybeSingle();
+
+        if (meterReaderResponse == null) {
+          print('❌ [SupabaseAccountsAuth] Meter reader data not found');
+          return {'success': false, 'error': 'Meter reader data not found'};
+        }
+
+        print('✅ [SupabaseAccountsAuth] Meter reader data retrieved');
+
+        // Create a custom user object for meter reader
+        userData = {
+          'id': accountResponse['id']?.toString() ?? '',
+          'email': accountResponse['email'] ?? '',
+          'full_name': accountResponse['full_name'] ?? '',
+          'phone': accountResponse['mobile_no']?.toString() ?? '',
+          'full_address': accountResponse['full_address'] ?? '',
+          'consumer_id': null, // Meter readers don't have consumer_id
+          'water_meter_no': null, // Meter readers don't have water_meter_no
+          'meter_reader_id': meterReaderResponse['id']?.toString() ?? '',
+          'status': meterReaderResponse['status'] ?? '',
+          'assigned_to': meterReaderResponse['assigned_to']?.toString() ?? '',
+          'created_at': accountResponse['created_at']?.toString() ?? '',
+          'updated_at': accountResponse['updated_at']?.toString() ?? '',
+          'user_type': userType,
+        };
+      } else {
+        print('❌ [SupabaseAccountsAuth] Unknown user type: $userType');
+        return {'success': false, 'error': 'Invalid user type'};
       }
-
-      print('✅ [SupabaseAccountsAuth] Consumer data retrieved');
-
-      // Create a custom user object that matches the expected format
-      final userData = {
-        'id': response['id']?.toString() ?? '',
-        'email': response['email'] ?? '',
-        'full_name': response['full_name'] ?? '',
-        'phone': response['mobile_no'] ?? '',
-        'full_address': response['full_address'] ?? '',
-        'consumer_id': response['consumer_id']?.toString() ?? '',
-        'water_meter_no': consumerResponse['water_meter_no'] ?? '',
-        'created_at': response['created_at']?.toString() ?? '',
-        'updated_at': response['updated_at']?.toString() ?? '',
-      };
 
       // For Supabase auth integration, we need to create a session
       // Since we're not using Supabase's built-in auth, we'll create a custom session
@@ -72,7 +119,7 @@ class SupabaseAccountsAuthService {
       return {
         'success': true,
         'user': userData,
-        'message': 'Authentication successful',
+        'message': 'Authentication successful for $userType',
       };
     } catch (e) {
       print('❌ [SupabaseAccountsAuth] Sign in failed: $e');
