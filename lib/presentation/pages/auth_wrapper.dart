@@ -4,7 +4,8 @@ import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import 'sign_in.dart';
-import 'consumer_account_main.dart';
+import 'consumer/consumer_account_main.dart';
+import 'meter_reader/meter_reader_account_main.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -41,13 +42,31 @@ class _AuthWrapperState extends State<AuthWrapper> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               print('AuthWrapper: Forcing navigation to main page');
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ConsumerAccountMain(key: ValueKey(state.user.id)),
-                ),
-              );
+
+              // Determine if this is a meter reader or consumer based on user ID format
+              final isMeterReader = state.user.id.contains(
+                '-',
+              ); // UUIDs contain hyphens
+
+              if (isMeterReader) {
+                print('AuthWrapper: Routing to MeterReaderAccountMain');
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        MeterReaderAccountMain(key: ValueKey(state.user.id)),
+                  ),
+                );
+              } else {
+                print('AuthWrapper: Routing to ConsumerAccountMain');
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ConsumerAccountMain(key: ValueKey(state.user.id)),
+                  ),
+                );
+              }
             }
           });
         } else if (state is AuthUnauthenticated) {
