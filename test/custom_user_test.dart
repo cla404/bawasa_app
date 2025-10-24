@@ -18,7 +18,7 @@ void main() {
 
       final user = CustomUser.fromMap(map);
 
-      expect(user.consumerId, equals(123));
+      expect(user.consumerId, equals('123'));
       expect(user.email, equals('test@example.com'));
       expect(user.fullName, equals('Test User'));
     });
@@ -38,7 +38,7 @@ void main() {
 
       final user = CustomUser.fromMap(map);
 
-      expect(user.consumerId, equals(456));
+      expect(user.consumerId, equals('456'));
       expect(user.email, equals('test@example.com'));
     });
 
@@ -57,7 +57,7 @@ void main() {
 
       final user = CustomUser.fromMap(map);
 
-      expect(user.consumerId, equals(0));
+      expect(user.consumerId, equals(''));
       expect(user.email, equals('test@example.com'));
     });
   });
