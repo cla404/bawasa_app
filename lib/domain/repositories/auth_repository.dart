@@ -1,6 +1,7 @@
 import '../entities/user.dart';
 import '../entities/auth_credentials.dart';
 import '../entities/auth_result.dart';
+import '../entities/custom_user.dart';
 
 abstract class AuthRepository {
   Future<AuthResult> signIn(AuthCredentials credentials);
@@ -10,5 +11,6 @@ abstract class AuthRepository {
   Future<AuthResult> resendConfirmationEmail(String email);
   Future<AuthResult> updateProfile(UpdateProfileParams params);
   User? getCurrentUser();
+  CustomUser? getCurrentCustomUser();
   Stream<User?> get authStateChanges;
 }
