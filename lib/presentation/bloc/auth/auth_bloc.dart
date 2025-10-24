@@ -3,6 +3,7 @@ import '../../../domain/usecases/auth_usecases.dart';
 import '../../../domain/usecases/user_usecases.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/entities/user.dart' as domain;
+import '../../../domain/entities/custom_user.dart';
 import '../../../core/injection/injection_container.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -428,10 +429,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     return super.close();
   }
 
+  /// Get the current CustomUser for accessing userType and other custom fields
+  CustomUser? getCurrentCustomUser() {
+    return _authRepository.getCurrentCustomUser();
+  }
+
   // Helper method to determine if a user is a custom user (integer ID) or Supabase user (UUID)
   bool _isCustomUser(String userId) {
-    // Custom users have integer IDs, Supabase users have UUID strings
-    // UUIDs contain hyphens, integers don't
-    return !userId.contains('-') && int.tryParse(userId) != null;
+    // Custom users include:
+    // 1. Consumer accounts (integer IDs) - authenticated through custom auth
+    // 2. Meter reader accounts (UUIDs) - authenticated through custom auth
+    // Supabase users are only those authenticated through Supabase's built-in auth
+
+    // Since we're using custom auth repositories for both consumers and meter readers,
+    // all users authenticated through our custom auth system should be treated as custom users
+    // This prevents profile creation attempts for meter readers
+
+    // Check if it's an integer ID (consumer accounts)
+    if (!userId.contains('-') && int.tryParse(userId) != null) {
+      return true; // Consumer account
+    }
+
+    // For UUIDs, if they're authenticated through our custom auth system,
+    // they should be treated as custom users (meter readers)
+    if (userId.contains('-')) {
+      // All UUIDs from our custom auth system are meter readers
+      // and should be treated as custom users to avoid profile creation
+      return true;
+    }
+
+    return false; // Only true Supabase users (authenticated through Supabase auth)
   }
 }
