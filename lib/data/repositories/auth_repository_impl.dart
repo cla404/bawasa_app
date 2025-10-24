@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/entities/auth_credentials.dart';
 import '../../domain/entities/auth_result.dart';
+import '../../domain/entities/custom_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 
@@ -128,6 +129,13 @@ class AuthRepositoryImpl implements AuthRepository {
         : null;
     print('AuthRepository: Mapped domain user: ${domainUser?.email ?? 'null'}');
     return domainUser;
+  }
+
+  @override
+  CustomUser? getCurrentCustomUser() {
+    // This implementation uses Supabase auth, not custom auth
+    // So it doesn't have CustomUser objects
+    return null;
   }
 
   @override
