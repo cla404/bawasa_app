@@ -10,6 +10,8 @@ class CustomUser extends Equatable {
   final String waterMeterNo;
   final String createdAt;
   final String updatedAt;
+  final String
+  userType; // Added to distinguish between consumer and meter_reader
 
   const CustomUser({
     required this.id,
@@ -21,6 +23,7 @@ class CustomUser extends Equatable {
     required this.waterMeterNo,
     required this.createdAt,
     required this.updatedAt,
+    required this.userType,
   });
 
   factory CustomUser.fromMap(Map<String, dynamic> map) {
@@ -44,6 +47,9 @@ class CustomUser extends Equatable {
       waterMeterNo: map['water_meter_no']?.toString() ?? '',
       createdAt: map['created_at']?.toString() ?? '',
       updatedAt: map['updated_at']?.toString() ?? '',
+      userType:
+          map['user_type']?.toString() ??
+          'consumer', // Default to consumer for backward compatibility
     );
   }
 
@@ -58,6 +64,7 @@ class CustomUser extends Equatable {
       'water_meter_no': waterMeterNo,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'user_type': userType,
     };
   }
 
@@ -72,5 +79,6 @@ class CustomUser extends Equatable {
     waterMeterNo,
     createdAt,
     updatedAt,
+    userType,
   ];
 }
