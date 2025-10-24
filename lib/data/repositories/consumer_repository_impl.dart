@@ -14,18 +14,18 @@ class ConsumerRepositoryImpl implements ConsumerRepository {
         '🔍 [ConsumerRepository] Fetching consumer details for ID: $consumerId',
       );
 
-      // First, get the consumer data from bawasa_consumers table
+      // Get consumer data from bawasa_consumers table
       final consumerResponse = await _supabase
           .from('bawasa_consumers')
           .select()
           .eq('id', consumerId)
           .single();
 
-      // Then, get the account data from accounts table using consumer_id
+      // Get account data from accounts table using consumer_id foreign key
       final accountResponse = await _supabase
           .from('accounts')
           .select('full_name, full_address, mobile_no, email')
-          .eq('consumer_id', consumerId)
+          .eq('id', consumerResponse['consumer_id'])
           .single();
 
       print('✅ [ConsumerRepository] Successfully fetched consumer details');
@@ -62,23 +62,41 @@ class ConsumerRepositoryImpl implements ConsumerRepository {
     try {
       print('🔍 [ConsumerRepository] Fetching consumer by user ID: $userId');
 
-      // First, get the consumer_id from the accounts table
-      final accountResponse = await _supabase
-          .from('accounts')
-          .select('consumer_id')
-          .eq('id', userId)
-          .single();
+      // Get consumer data from bawasa_consumers table using consumer_id foreign key
+      final consumerResponse = await _supabase
+          .from('bawasa_consumers')
+          .select('*')
+          .eq('consumer_id', userId)
+          .maybeSingle();
 
-      if (accountResponse['consumer_id'] == null) {
-        print('ℹ️ [ConsumerRepository] No consumer_id found for user: $userId');
+      if (consumerResponse == null) {
+        print('ℹ️ [ConsumerRepository] No consumer found for user: $userId');
         return null;
       }
 
-      final consumerId = accountResponse['consumer_id'];
-      print('🔍 [ConsumerRepository] Found consumer_id: $consumerId');
+      print('🔍 [ConsumerRepository] Found consumer data: $consumerResponse');
 
-      // Now fetch the consumer details
-      return await getConsumerDetails(consumerId.toString());
+      // Get account data from accounts table
+      final accountResponse = await _supabase
+          .from('accounts')
+          .select('full_name, full_address, mobile_no, email')
+          .eq('id', userId)
+          .single();
+
+      print('🔍 [ConsumerRepository] Found account data: $accountResponse');
+
+      // Merge the data from both tables
+      final mergedData = {
+        ...consumerResponse,
+        'full_name':
+            accountResponse['full_name'] ?? consumerResponse['full_name'],
+        'full_address':
+            accountResponse['full_address'] ?? consumerResponse['full_address'],
+        'mobile_no': accountResponse['mobile_no'] ?? consumerResponse['phone'],
+        'email': accountResponse['email'] ?? consumerResponse['email'],
+      };
+
+      return Consumer.fromJson(mergedData);
     } catch (e) {
       print('❌ [ConsumerRepository] Error fetching consumer by user ID: $e');
       print('❌ [ConsumerRepository] Error type: ${e.runtimeType}');
