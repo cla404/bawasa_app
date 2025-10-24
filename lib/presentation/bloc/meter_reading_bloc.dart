@@ -233,11 +233,12 @@ class MeterReadingBloc extends Bloc<MeterReadingEvent, MeterReadingState> {
       );
       emit(MeterReadingSubmitted(reading));
 
+      // COMMENTED OUT: Stop reloading meter readings due to database schema issues
       // Reload readings to update the list
-      print(
-        '🔄 [MeterReadingBloc] Reloading meter readings after submission...',
-      );
-      add(LoadMeterReadings());
+      // print(
+      //   '🔄 [MeterReadingBloc] Reloading meter readings after submission...',
+      // );
+      // add(LoadMeterReadings());
     } catch (e) {
       print('❌ [MeterReadingBloc] Error submitting meter reading: $e');
       print('❌ [MeterReadingBloc] Error type: ${e.runtimeType}');
@@ -253,8 +254,9 @@ class MeterReadingBloc extends Bloc<MeterReadingEvent, MeterReadingState> {
       final reading = await _updateMeterReadingUseCase(event.reading);
       emit(MeterReadingUpdated(reading));
 
+      // COMMENTED OUT: Stop reloading meter readings due to database schema issues
       // Reload readings to update the list
-      add(LoadMeterReadings());
+      // add(LoadMeterReadings());
     } catch (e) {
       emit(MeterReadingError(e.toString()));
     }
