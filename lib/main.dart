@@ -7,6 +7,7 @@ import 'presentation/pages/auth_wrapper.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/meter_reading_bloc.dart';
 import 'presentation/bloc/consumer_bloc.dart';
+import 'presentation/bloc/billing_bloc.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
           create: (context) => sl<MeterReadingBloc>(),
         ),
         BlocProvider<ConsumerBloc>(create: (context) => sl<ConsumerBloc>()),
+        BlocProvider<BillingBloc>(create: (context) => sl<BillingBloc>()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
