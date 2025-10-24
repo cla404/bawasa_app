@@ -5,7 +5,8 @@ import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import 'sign_up.dart';
-import 'consumer_account_main.dart';
+import 'consumer/consumer_account_main.dart';
+import 'meter_reader/meter_reader_account_main.dart';
 
 class SignIn extends StatefulWidget {
   const SignIn({super.key});
@@ -316,13 +317,41 @@ class _SignInState extends State<SignIn> {
                                 print(
                                   'SignIn: Navigating directly to main page',
                                 );
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const ConsumerAccountMain(),
-                                  ),
-                                );
+
+                                // Route based on user type - check user_type from CustomUser
+                                // Get the CustomUser to access userType field
+                                final customUser = context
+                                    .read<AuthBloc>()
+                                    .getCurrentCustomUser();
+                                final isMeterReader =
+                                    customUser?.userType == 'meter_reader';
+
+                                if (isMeterReader) {
+                                  print(
+                                    'SignIn: Routing meter reader to MeterReaderAccountMain',
+                                  );
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          MeterReaderAccountMain(
+                                            key: ValueKey(state.user.id),
+                                          ),
+                                    ),
+                                  );
+                                } else {
+                                  print(
+                                    'SignIn: Routing consumer to ConsumerAccountMain',
+                                  );
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ConsumerAccountMain(
+                                        key: ValueKey(state.user.id),
+                                      ),
+                                    ),
+                                  );
+                                }
                               }
                             });
                           } else if (state is AuthError) {
