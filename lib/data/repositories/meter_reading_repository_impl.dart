@@ -1,4 +1,6 @@
 import '../../domain/entities/meter_reading.dart';
+import '../../domain/entities/meter_reading_submission.dart';
+import '../../domain/entities/consumer.dart';
 import '../../domain/repositories/meter_reading_repository.dart';
 import '../../services/supabase_config.dart';
 import '../../services/photo_upload_service.dart';
@@ -332,6 +334,108 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       throw ServerFailure(
         'Failed to fetch meter reading by ID: ${e.toString()}',
       );
+    }
+  }
+
+  // Meter Reader specific methods
+  @override
+  Future<MeterReadingSubmission> submitMeterReadingForConsumer(
+    MeterReadingSubmission submission,
+    File? meterImageFile,
+  ) async {
+    try {
+      print(
+        '📝 [MeterReadingRepository] Submitting meter reading for consumer...',
+      );
+
+      String? meterImageUrl;
+
+      // Upload meter image if provided
+      if (meterImageFile != null) {
+        print('📸 [MeterReadingRepository] Uploading meter image...');
+        await _photoUploadService.ensureStorageBucketExists();
+        meterImageUrl = await _photoUploadService.uploadPhoto(meterImageFile);
+      }
+
+      // Prepare data for insertion
+      final insertData = {
+        'previous_reading': submission.previousReading,
+        'present_reading': submission.presentReading,
+        'number_of_consumption': submission.numberOfConsumption,
+        'remarks': submission.remarks,
+        'consumer_id': submission.consumerId,
+        'meter_image': meterImageUrl,
+        'created_at': submission.createdAt.toIso8601String(),
+      };
+
+      print('📝 [MeterReadingRepository] Insert data: $insertData');
+
+      final response = await _supabase
+          .from('meter_readings')
+          .insert(insertData)
+          .select()
+          .single();
+
+      print(
+        '✅ [MeterReadingRepository] Successfully submitted meter reading for consumer',
+      );
+      print('📊 [MeterReadingRepository] Response: $response');
+
+      return MeterReadingSubmission.fromJson(response);
+    } catch (e) {
+      print(
+        '❌ [MeterReadingRepository] Error submitting meter reading for consumer: $e',
+      );
+      throw ServerFailure(
+        'Failed to submit meter reading for consumer: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<List<Consumer>> getConsumersForMeterReader() async {
+    try {
+      print(
+        '🔍 [MeterReadingRepository] Fetching consumers for meter reader...',
+      );
+
+      final response = await _supabase
+          .from('bawasa_consumers')
+          .select()
+          .order('full_name', ascending: true);
+
+      print(
+        '✅ [MeterReadingRepository] Successfully fetched ${(response as List).length} consumers',
+      );
+
+      return (response as List).map((json) => Consumer.fromJson(json)).toList();
+    } catch (e) {
+      print('❌ [MeterReadingRepository] Error fetching consumers: $e');
+      throw ServerFailure('Failed to fetch consumers: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Consumer?> getConsumerById(String consumerId) async {
+    try {
+      print('🔍 [MeterReadingRepository] Fetching consumer by ID: $consumerId');
+
+      final response = await _supabase
+          .from('bawasa_consumers')
+          .select()
+          .eq('id', consumerId)
+          .maybeSingle();
+
+      if (response == null) {
+        print('ℹ️ [MeterReadingRepository] Consumer not found');
+        return null;
+      }
+
+      print('✅ [MeterReadingRepository] Successfully fetched consumer');
+      return Consumer.fromJson(response);
+    } catch (e) {
+      print('❌ [MeterReadingRepository] Error fetching consumer by ID: $e');
+      throw ServerFailure('Failed to fetch consumer by ID: ${e.toString()}');
     }
   }
 }
