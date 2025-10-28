@@ -5,6 +5,7 @@ import '../../domain/repositories/meter_reading_repository.dart';
 import '../../services/supabase_config.dart';
 import '../../services/photo_upload_service.dart';
 import '../../core/error/failures.dart';
+import '../../core/utils/bawasa_billing_calculator.dart';
 import '../../data/repositories/supabase_accounts_auth_repository_impl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:get_it/get_it.dart';
@@ -377,13 +378,9 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
         }
       }
 
-      // Get current date for reading_date
-      final readingDate = submission.createdAt.toIso8601String().split('T')[0];
-
       // Prepare data for insertion into bawasa_meter_readings table
       final insertData = {
         'consumer_id': submission.consumerId,
-        'reading_date': readingDate,
         'previous_reading': submission.previousReading,
         'present_reading': submission.presentReading,
         'remarks': submission.remarks,
@@ -407,14 +404,65 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       );
       print('📊 [MeterReadingRepository] Response: $response');
 
+      // Get the meter reading ID and consumption
+      final meterReadingId = response['id'] as String;
+      final consumption = (response['consumption_cubic_meters'] as num)
+          .toDouble();
+
+      // Now create a billing record
+      print('💰 [MeterReadingRepository] Creating billing record...');
+
+      // Calculate billing using BAWASA calculator
+      final billingCalc = BAWASABillingCalculator.calculateBilling(consumption);
+
+      // Calculate due date (30 days from now)
+      final dueDate = DateTime.now().add(const Duration(days: 30));
+
+      // Get billing month (current month name + year)
+      final billingMonth =
+          '${_getMonthName(DateTime.now().month)} ${DateTime.now().year}';
+
+      // Prepare billing data
+      final billingData = {
+        'consumer_id': submission.consumerId,
+        'meter_reading_id': meterReadingId,
+        'billing_month': billingMonth,
+        'consumption_10_or_below': billingCalc.consumption10OrBelow,
+        'amount_10_or_below': billingCalc.amount10OrBelow,
+        'amount_10_or_below_with_discount':
+            billingCalc.amount10OrBelowWithDiscount,
+        'consumption_over_10': billingCalc.consumptionOver10,
+        'amount_over_10': billingCalc.amountOver10,
+        'amount_current_billing': billingCalc.amountCurrentBilling,
+        'arrears_to_be_paid': 0,
+        'due_date': dueDate.toIso8601String().split('T')[0],
+        'arrears_after_due_date': null,
+        'payment_status': 'unpaid',
+        'payment_date': null,
+        'amount_paid': 0,
+        'reading_assigned': true,
+        'created_at': submission.createdAt.toIso8601String(),
+        'updated_at': submission.createdAt.toIso8601String(),
+      };
+
+      print('📝 [MeterReadingRepository] Billing data: $billingData');
+
+      final billingResponse = await _supabase
+          .from('bawasa_billings')
+          .insert(billingData)
+          .select()
+          .single();
+
+      print('✅ [MeterReadingRepository] Successfully created billing record');
+      print('📊 [MeterReadingRepository] Billing response: $billingResponse');
+
       // Convert response to MeterReadingSubmission format
       // Note: The response will contain the auto-generated consumption_cubic_meters
       return MeterReadingSubmission(
-        id: response['id'] as String,
+        id: meterReadingId,
         previousReading: response['previous_reading'] as double,
         presentReading: response['present_reading'] as double,
-        numberOfConsumption: (response['consumption_cubic_meters'] as num)
-            .toInt(),
+        numberOfConsumption: consumption.toInt(),
         remarks: response['remarks'] as String?,
         consumerId: response['consumer_id'] as String,
         meterImage: meterImageUrl,
@@ -578,5 +626,24 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       createdAt: DateTime.parse(consumerData['created_at'] as String),
       updatedAt: DateTime.parse(consumerData['updated_at'] as String),
     );
+  }
+
+  /// Helper method to get month name from month number
+  String _getMonthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[month - 1];
   }
 }
