@@ -190,16 +190,6 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFF2ECC71),
-                          child: Text(
-                            consumer.waterMeterNo.substring(2),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                         title: Text(
                           consumer.fullName,
                           style: const TextStyle(
@@ -484,17 +474,6 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: const Color(0xFF2ECC71),
-                        child: Text(
-                          _selectedConsumer!.waterMeterNo.substring(2),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
