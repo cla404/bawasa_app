@@ -38,9 +38,9 @@ class RecentActivityRepositoryImpl implements RecentActivityRepository {
         throw ServerFailure('User not authenticated. Please sign in first.');
       }
 
-      // Get consumer data from bawasa_consumers table using consumer_id foreign key
+      // Get consumer data from consumers table using consumer_id foreign key
       final consumerResponse = await SupabaseConfig.client
-          .from('bawasa_consumers')
+          .from('consumers')
           .select('id')
           .eq('consumer_id', currentUser.id)
           .maybeSingle();

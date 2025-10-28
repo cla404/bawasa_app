@@ -48,9 +48,9 @@ class SupabaseAccountsAuthService {
       String userType = dbUserType ?? 'consumer';
 
       if (userType == 'consumer') {
-        // Get consumer data from bawasa_consumers table using consumer_id foreign key
+        // Get consumer data from consumers table using consumer_id foreign key
         final consumerResponse = await _supabase
-            .from('bawasa_consumers')
+            .from('consumers')
             .select('*')
             .eq('consumer_id', accountResponse['id'])
             .maybeSingle();

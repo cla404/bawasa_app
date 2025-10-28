@@ -4,6 +4,8 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../domain/entities/consumer.dart';
 import '../../../services/camera_service.dart';
+import '../../../domain/usecases/meter_reader_usecases.dart';
+import 'package:get_it/get_it.dart';
 import 'dart:io';
 
 class MeterReaderSubmissionPage extends StatefulWidget {
@@ -25,6 +27,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
   Consumer? _selectedConsumer;
   File? _selectedPhoto;
   bool _isLoading = false;
+  bool _isSubmitting = false;
   List<Consumer> _consumers = [];
 
   @override
@@ -47,48 +50,14 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
     });
 
     try {
-      // TODO: Implement actual consumer loading from repository
-      // For now, using mock data
-      await Future.delayed(const Duration(seconds: 1));
+      // Fetch actual consumers from repository
+      final getConsumersUseCase = GetConsumersForMeterReaderUseCase(
+        GetIt.instance(),
+      );
+      final consumers = await getConsumersUseCase();
+
       setState(() {
-        _consumers = [
-          Consumer(
-            id: '1',
-            waterMeterNo: 'WM001',
-            fullName: 'John Doe',
-            fullAddress: '123 Main St, City',
-            phone: '09123456789',
-            email: 'john@example.com',
-            previousReading: 1000.0,
-            currentReading: 1050.0,
-            consumptionCubicMeters: 50.0,
-            amountCurrentBilling: 500.0,
-            billingMonth: 'January 2024',
-            meterReadingDate: '2024-01-15',
-            dueDate: '2024-02-15',
-            status: 'Pending',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-          Consumer(
-            id: '2',
-            waterMeterNo: 'WM002',
-            fullName: 'Jane Smith',
-            fullAddress: '456 Oak Ave, City',
-            phone: '09987654321',
-            email: 'jane@example.com',
-            previousReading: 2000.0,
-            currentReading: 2100.0,
-            consumptionCubicMeters: 100.0,
-            amountCurrentBilling: 1000.0,
-            billingMonth: 'January 2024',
-            meterReadingDate: '2024-01-15',
-            dueDate: '2024-02-15',
-            status: 'Pending',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-        ];
+        _consumers = consumers;
         _isLoading = false;
       });
     } catch (e) {
@@ -269,7 +238,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
     );
   }
 
-  void _submitReading() {
+  Future<void> _submitReading() async {
     if (_selectedConsumer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -326,22 +295,57 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
       return;
     }
 
-    // TODO: Implement actual submission using repository
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Meter reading submitted successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // Clear form
     setState(() {
-      _selectedConsumer = null;
-      _selectedPhoto = null;
+      _isSubmitting = true;
     });
-    _previousReadingController.clear();
-    _presentReadingController.clear();
-    _remarksController.clear();
+
+    try {
+      // Submit the meter reading
+      final submitUseCase = SubmitMeterReadingForConsumerUseCase(
+        GetIt.instance(),
+      );
+
+      await submitUseCase.call(
+        consumerId: _selectedConsumer!.id,
+        previousReading: previousReading,
+        presentReading: presentReading,
+        remarks: _remarksController.text.isEmpty
+            ? null
+            : _remarksController.text,
+        meterImageFile: _selectedPhoto,
+      );
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Meter reading submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Clear form
+      setState(() {
+        _selectedConsumer = null;
+        _selectedPhoto = null;
+      });
+      _previousReadingController.clear();
+      _presentReadingController.clear();
+      _remarksController.clear();
+
+      // Reload consumers to show updated information
+      await _loadConsumers();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error submitting meter reading: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
   }
 
   @override
@@ -632,7 +636,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submitReading,
+              onPressed: _isSubmitting ? null : _submitReading,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2ECC71),
                 foregroundColor: Colors.white,
@@ -642,10 +646,35 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
                 ),
                 elevation: 2,
               ),
-              child: const Text(
-                'Submit Meter Reading',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              child: _isSubmitting
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Submitting...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'Submit Meter Reading',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],

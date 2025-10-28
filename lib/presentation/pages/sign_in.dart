@@ -409,40 +409,12 @@ class _SignInState extends State<SignIn> {
                 ),
               ),
 
-              const SizedBox(height: 32),
-
               // Sign Up Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SignUp()),
-                      );
-                    },
-                    child: Text(
-                      'Sign Up',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
               const SizedBox(height: 20),
 
               // Footer
               Text(
-                '© 2024 BAWASA Management System. All rights reserved.',
+                'BAWASA Management System. All rights reserved.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[400], fontSize: 12),
               ),

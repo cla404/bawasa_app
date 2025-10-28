@@ -177,6 +177,7 @@ class _BillingPageState extends State<BillingPage> {
 
       if (currentBill == null) {
         return Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,

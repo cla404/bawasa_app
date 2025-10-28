@@ -8,6 +8,7 @@ import '../../domain/repositories/billing_repository.dart';
 import '../../domain/repositories/recent_activity_repository.dart';
 import '../../domain/usecases/auth_usecases.dart';
 import '../../domain/usecases/meter_reading_usecases.dart';
+import '../../domain/usecases/meter_reader_usecases.dart';
 import '../../domain/usecases/user_usecases.dart';
 import '../../domain/usecases/consumer_usecases.dart';
 import '../../domain/usecases/submit_issue_report.dart';
@@ -27,6 +28,7 @@ import '../../presentation/bloc/meter_reading_bloc.dart';
 import '../../presentation/bloc/consumer_bloc.dart';
 import '../../presentation/bloc/billing_bloc.dart';
 import '../../presentation/bloc/recent_activity_bloc.dart';
+import '../../presentation/bloc/consumption_bloc.dart';
 import '../config/supabase_config.dart';
 
 final sl = GetIt.instance;
@@ -87,6 +89,9 @@ Future<void> init() async {
   sl.registerLazySingleton(() => UpdateMeterReadingUseCase(sl()));
   sl.registerLazySingleton(() => DeleteMeterReadingUseCase(sl()));
 
+  // Use cases - Meter Reader
+  sl.registerLazySingleton(() => GetConsumersForMeterReaderUseCase(sl()));
+
   // Use cases - Consumer
   sl.registerLazySingleton(() => GetConsumerDetailsUseCase(sl()));
   sl.registerLazySingleton(() => GetConsumerByUserIdUseCase(sl()));
@@ -133,5 +138,8 @@ Future<void> init() async {
   );
   sl.registerLazySingleton(
     () => RecentActivityBloc(getRecentActivitiesUseCase: sl()),
+  );
+  sl.registerLazySingleton(
+    () => ConsumptionBloc(getUserMeterReadingsUseCase: sl()),
   );
 }

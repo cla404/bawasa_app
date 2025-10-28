@@ -5,6 +5,8 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../bloc/recent_activity_bloc.dart';
+import '../../bloc/consumption_bloc.dart';
+import '../../widgets/consumption_chart.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/entities/recent_activity.dart';
 import 'meter_reading_page.dart';
@@ -58,9 +60,30 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
         return MultiBlocProvider(
           providers: [
             BlocProvider<RecentActivityBloc>(
-              create: (context) => RecentActivityBloc(
-                getRecentActivitiesUseCase: GetIt.instance(),
-              )..add(const LoadRecentActivities()),
+              create: (context) {
+                final bloc = RecentActivityBloc(
+                  getRecentActivitiesUseCase: GetIt.instance(),
+                );
+                // Add event asynchronously to avoid race conditions
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (bloc.isClosed == false) {
+                    bloc.add(const LoadRecentActivities());
+                  }
+                });
+                return bloc;
+              },
+            ),
+            BlocProvider<ConsumptionBloc>(
+              create: (context) {
+                final consumptionBloc = GetIt.instance<ConsumptionBloc>();
+                // Add event asynchronously to avoid race conditions
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (consumptionBloc.isClosed == false) {
+                    consumptionBloc.add(const LoadConsumptionData());
+                  }
+                });
+                return consumptionBloc;
+              },
             ),
           ],
           child: BlocListener<AuthBloc, AuthState>(
@@ -126,6 +149,10 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                 return _buildUserInfoCard(user);
               },
             ),
+            const SizedBox(height: 24),
+
+            // Consumption Chart Section
+            _buildConsumptionChartSection(),
             const SizedBox(height: 24),
 
             // Quick Actions Section
@@ -236,6 +263,101 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildConsumptionChartSection() {
+    return BlocBuilder<ConsumptionBloc, ConsumptionState>(
+      builder: (context, state) {
+        if (state is ConsumptionLoading) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Column(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading consumption data...',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state is ConsumptionError) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 8),
+                const Text(
+                  'Failed to load consumption data',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A3A5C),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  state.message,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<ConsumptionBloc>().add(
+                      const RefreshConsumptionData(),
+                    );
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (state is ConsumptionLoaded) {
+          return ConsumptionChart(
+            meterReadings: state.meterReadings,
+            initialPeriod: ChartPeriod.monthly,
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 

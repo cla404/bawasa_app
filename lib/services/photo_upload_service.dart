@@ -14,9 +14,12 @@ class PhotoUploadService {
   final SupabaseClient _supabase = SupabaseConfig.client;
 
   /// Upload photo to Supabase Storage
-  Future<String> uploadPhoto(File photoFile) async {
+  Future<String> uploadPhoto(
+    File photoFile, {
+    required String consumerId,
+  }) async {
     try {
-      print('📸 [PhotoUploadService] Starting photo upload...');
+      print('📸 [PhotoUploadService] Starting meter reading photo upload...');
 
       // Check if user is authenticated using custom auth system
       final authRepository = sl<AuthRepository>();
@@ -25,31 +28,34 @@ class PhotoUploadService {
         throw ServerFailure('User not authenticated. Please sign in first.');
       }
 
-      // Generate unique filename using custom user ID
+      // Generate unique filename using timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'meter_reading_${currentUser.id}_$timestamp.jpg';
-      final filePath = 'meter-readings/$fileName';
+      final fileName = 'meter_reading_$timestamp.jpg';
+
+      // Create folder structure: meter_image/consumer_{consumer_id}/filename
+      final filePath = 'meter_image/consumer_$consumerId/$fileName';
 
       print('📸 [PhotoUploadService] Uploading to path: $filePath');
+      print('📸 [PhotoUploadService] Consumer ID: $consumerId');
 
-      // Upload file to Supabase Storage
-      await _supabase.storage
-          .from('meter-readings')
-          .upload(filePath, photoFile);
+      // Upload file to Supabase Storage - meter_image bucket
+      await _supabase.storage.from('meter_image').upload(filePath, photoFile);
 
       // Get public URL
       final publicUrl = _supabase.storage
-          .from('meter-readings')
+          .from('meter_image')
           .getPublicUrl(filePath);
 
-      print('✅ [PhotoUploadService] Photo uploaded successfully');
+      print('✅ [PhotoUploadService] Meter reading photo uploaded successfully');
       print('📸 [PhotoUploadService] Public URL: $publicUrl');
 
       return publicUrl;
     } catch (e) {
-      print('❌ [PhotoUploadService] Error uploading photo: $e');
+      print('❌ [PhotoUploadService] Error uploading meter reading photo: $e');
       print('❌ [PhotoUploadService] Error type: ${e.runtimeType}');
-      throw ServerFailure('Failed to upload photo: ${e.toString()}');
+      throw ServerFailure(
+        'Failed to upload meter reading photo: ${e.toString()}',
+      );
     }
   }
 
@@ -179,26 +185,24 @@ class PhotoUploadService {
 
       final buckets = await _supabase.storage.listBuckets();
 
-      // Check for meter-readings bucket
-      final meterReadingsExists = buckets.any(
-        (bucket) => bucket.name == 'meter-readings',
+      // Check for meter_image bucket
+      final meterImageExists = buckets.any(
+        (bucket) => bucket.name == 'meter_image',
       );
 
-      if (!meterReadingsExists) {
-        print('📦 [PhotoUploadService] Creating meter-readings bucket...');
+      if (!meterImageExists) {
+        print('📦 [PhotoUploadService] Creating meter_image bucket...');
         await _supabase.storage.createBucket(
-          'meter-readings',
+          'meter_image',
           BucketOptions(
             public: true,
             allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
             fileSizeLimit: '5MB', // 5MB limit
           ),
         );
-        print(
-          '✅ [PhotoUploadService] meter-readings bucket created successfully',
-        );
+        print('✅ [PhotoUploadService] meter_image bucket created successfully');
       } else {
-        print('✅ [PhotoUploadService] meter-readings bucket already exists');
+        print('✅ [PhotoUploadService] meter_image bucket already exists');
       }
 
       // Check for issue report bucket

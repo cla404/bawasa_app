@@ -30,27 +30,29 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
 
       print('🔍 [MeterReadingRepository] Current user: ${currentUser.email}');
 
-      // Get the consumer_id from the accounts table using the custom user ID
-      final accountResponse = await _supabase
-          .from('accounts')
-          .select('consumer_id')
-          .eq('id', currentUser.id)
-          .single();
+      // Get the consumer meter readings from bawasa_meter_readings table
+      // First, get the consumer ID from consumers table
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
+          .eq('consumer_id', currentUser.id)
+          .maybeSingle();
 
-      if (accountResponse['consumer_id'] == null) {
-        throw ServerFailure(
-          'Consumer account not found. Please contact support.',
+      if (consumerResponse == null) {
+        print(
+          '❌ [MeterReadingRepository] Consumer not found for user: ${currentUser.id}',
         );
+        return [];
       }
 
-      final consumerId = accountResponse['consumer_id'] as String;
-      print('🔍 [MeterReadingRepository] Found consumer_id: $consumerId');
+      final consumerId = consumerResponse['id'] as String;
+      print('🔍 [MeterReadingRepository] Found consumer ID: $consumerId');
 
-      // Now fetch meter readings using the consumer_id (UUID)
+      // Now get meter readings for this consumer
       final response = await _supabase
-          .from('meter_readings')
-          .select()
-          .eq('user_id_ref', consumerId) // Use the consumer_id UUID
+          .from('bawasa_meter_readings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .order('reading_date', ascending: false);
 
       print(
@@ -58,8 +60,9 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       );
       print('📊 [MeterReadingRepository] Response data: $response');
 
+      // Convert bawasa_meter_readings records to MeterReading entities
       return (response as List)
-          .map((json) => MeterReading.fromJson(json))
+          .map((json) => _convertMeterReadingToEntity(json))
           .toList();
     } catch (e) {
       print('❌ [MeterReadingRepository] Error fetching meter readings: $e');
@@ -75,37 +78,41 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
     DateTime endDate,
   ) async {
     try {
-      // Check if user is authenticated
-      final currentUser = _supabase.auth.currentUser;
+      // Get current user from Supabase accounts auth
+      final supabaseAccountsAuthRepo =
+          GetIt.instance<SupabaseAccountsAuthRepositoryImpl>();
+      final currentUser = supabaseAccountsAuthRepo.getCurrentUser();
+
       if (currentUser == null) {
         throw ServerFailure('User not authenticated. Please sign in first.');
       }
 
-      // Get the user profile ID from the users table
-      final userProfileResponse = await _supabase
-          .from('users')
+      // First, get the consumer ID from consumers table
+      final consumerResponse = await _supabase
+          .from('consumers')
           .select('id')
-          .eq('auth_user_id', currentUser.id)
+          .eq('consumer_id', currentUser.id)
           .maybeSingle();
 
-      if (userProfileResponse == null) {
-        throw ServerFailure(
-          'User profile not found. Please complete your profile setup.',
+      if (consumerResponse == null) {
+        print(
+          '❌ [MeterReadingRepository] Consumer not found for user: ${currentUser.id}',
         );
+        return [];
       }
 
-      final userProfileId = userProfileResponse['id'] as String;
+      final consumerId = consumerResponse['id'] as String;
 
       final response = await _supabase
-          .from('meter_readings')
-          .select()
-          .eq('user_id_ref', userProfileId) // Filter by current user
+          .from('bawasa_meter_readings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .gte('reading_date', startDate.toIso8601String().split('T')[0])
           .lte('reading_date', endDate.toIso8601String().split('T')[0])
           .order('reading_date', ascending: false);
 
       return (response as List)
-          .map((json) => MeterReading.fromJson(json))
+          .map((json) => _convertMeterReadingToEntity(json))
           .toList();
     } catch (e) {
       throw ServerFailure(
@@ -126,11 +133,14 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
 
       String? photoUrl;
 
-      // Upload photo if provided
-      if (photoFile != null) {
+      // Upload photo if provided - use user_id_ref as consumer identifier
+      if (photoFile != null && reading.user_id_ref.isNotEmpty) {
         print('📸 [MeterReadingRepository] Uploading photo...');
         await _photoUploadService.ensureStorageBucketExists();
-        photoUrl = await _photoUploadService.uploadPhoto(photoFile);
+        photoUrl = await _photoUploadService.uploadPhoto(
+          photoFile,
+          consumerId: reading.user_id_ref,
+        );
 
         // Update reading with photo URL
         reading = reading.copyWith(photoUrl: photoUrl);
@@ -263,27 +273,27 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
 
       print('🔍 [MeterReadingRepository] Current user: ${currentUser.email}');
 
-      // Get the consumer_id from the accounts table using the custom user ID
-      final accountResponse = await _supabase
-          .from('accounts')
-          .select('consumer_id')
-          .eq('id', currentUser.id)
-          .single();
+      // First, get the consumer ID from consumers table
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
+          .eq('consumer_id', currentUser.id)
+          .maybeSingle();
 
-      if (accountResponse['consumer_id'] == null) {
-        throw ServerFailure(
-          'Consumer account not found. Please contact support.',
+      if (consumerResponse == null) {
+        print(
+          '❌ [MeterReadingRepository] Consumer not found for user: ${currentUser.id}',
         );
+        return null;
       }
 
-      final consumerId = accountResponse['consumer_id'] as String;
-      print('🔍 [MeterReadingRepository] Found consumer_id: $consumerId');
+      final consumerId = consumerResponse['id'] as String;
 
-      // Now fetch latest meter reading using the consumer_id (UUID)
+      // Get the latest meter reading from bawasa_meter_readings table
       final response = await _supabase
-          .from('meter_readings')
-          .select()
-          .eq('user_id_ref', consumerId) // Use the consumer_id UUID
+          .from('bawasa_meter_readings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .order('reading_date', ascending: false)
           .limit(1);
 
@@ -295,7 +305,7 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       }
 
       print('✅ [MeterReadingRepository] Found latest meter reading');
-      return MeterReading.fromJson(response.first);
+      return _convertMeterReadingToEntity(response.first);
     } catch (e) {
       print(
         '❌ [MeterReadingRepository] Error fetching latest meter reading: $e',
@@ -351,37 +361,65 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       String? meterImageUrl;
 
       // Upload meter image if provided
-      if (meterImageFile != null) {
+      if (meterImageFile != null && submission.consumerId != null) {
         print('📸 [MeterReadingRepository] Uploading meter image...');
-        await _photoUploadService.ensureStorageBucketExists();
-        meterImageUrl = await _photoUploadService.uploadPhoto(meterImageFile);
+        // Bucket already exists, no need to create it
+        try {
+          meterImageUrl = await _photoUploadService.uploadPhoto(
+            meterImageFile,
+            consumerId: submission.consumerId!,
+          );
+        } catch (e) {
+          print(
+            '⚠️ [MeterReadingRepository] Warning: Failed to upload image, continuing without image: $e',
+          );
+          // Continue without image if upload fails
+        }
       }
 
-      // Prepare data for insertion
+      // Get current date for reading_date
+      final readingDate = submission.createdAt.toIso8601String().split('T')[0];
+
+      // Prepare data for insertion into bawasa_meter_readings table
       final insertData = {
+        'consumer_id': submission.consumerId,
+        'reading_date': readingDate,
         'previous_reading': submission.previousReading,
         'present_reading': submission.presentReading,
-        'number_of_consumption': submission.numberOfConsumption,
         'remarks': submission.remarks,
-        'consumer_id': submission.consumerId,
-        'meter_image': meterImageUrl,
+        'reading_assigned': true, // Set reading_assigned to true
+        'meter_image':
+            meterImageUrl, // Store the image URL in meter_image column
         'created_at': submission.createdAt.toIso8601String(),
+        'updated_at': submission.createdAt.toIso8601String(),
       };
 
       print('📝 [MeterReadingRepository] Insert data: $insertData');
 
       final response = await _supabase
-          .from('meter_readings')
+          .from('bawasa_meter_readings')
           .insert(insertData)
           .select()
           .single();
 
       print(
-        '✅ [MeterReadingRepository] Successfully submitted meter reading for consumer',
+        '✅ [MeterReadingRepository] Successfully submitted meter reading to bawasa_meter_readings',
       );
       print('📊 [MeterReadingRepository] Response: $response');
 
-      return MeterReadingSubmission.fromJson(response);
+      // Convert response to MeterReadingSubmission format
+      // Note: The response will contain the auto-generated consumption_cubic_meters
+      return MeterReadingSubmission(
+        id: response['id'] as String,
+        previousReading: response['previous_reading'] as double,
+        presentReading: response['present_reading'] as double,
+        numberOfConsumption: (response['consumption_cubic_meters'] as num)
+            .toInt(),
+        remarks: response['remarks'] as String?,
+        consumerId: response['consumer_id'] as String,
+        meterImage: meterImageUrl,
+        createdAt: DateTime.parse(response['created_at'] as String),
+      );
     } catch (e) {
       print(
         '❌ [MeterReadingRepository] Error submitting meter reading for consumer: $e',
@@ -399,16 +437,76 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
         '🔍 [MeterReadingRepository] Fetching consumers for meter reader...',
       );
 
-      final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
-          .order('full_name', ascending: true);
+      // Get current user from Supabase accounts auth
+      final supabaseAccountsAuthRepo =
+          GetIt.instance<SupabaseAccountsAuthRepositoryImpl>();
+      final currentUser = supabaseAccountsAuthRepo.getCurrentUser();
+
+      if (currentUser == null) {
+        throw ServerFailure('User not authenticated. Please sign in first.');
+      }
+
+      print('🔍 [MeterReadingRepository] Current user: ${currentUser.email}');
+
+      // First, get the meter reader's database ID from bawasa_meter_reader table
+      final meterReaderResponse = await _supabase
+          .from('bawasa_meter_reader')
+          .select('id')
+          .eq('reader_id', currentUser.id)
+          .maybeSingle();
+
+      if (meterReaderResponse == null) {
+        print('❌ [MeterReadingRepository] Meter reader not found in database');
+        throw ServerFailure('Meter reader data not found');
+      }
+
+      final meterReaderId = meterReaderResponse['id'] as int;
+      print('🔍 [MeterReadingRepository] Meter reader ID: $meterReaderId');
+
+      // Now fetch consumers assigned to this meter reader from meter_reader_assignments
+      final assignmentsResponse = await _supabase
+          .from('meter_reader_assignments')
+          .select('''
+            *,
+            consumers!consumer_id (
+              *,
+              accounts!consumer_id (
+                *
+              )
+            )
+          ''')
+          .eq('meter_reader_id', meterReaderId)
+          .eq('status', 'assigned')
+          .order('created_at', ascending: true);
 
       print(
-        '✅ [MeterReadingRepository] Successfully fetched ${(response as List).length} consumers',
+        '✅ [MeterReadingRepository] Successfully fetched ${(assignmentsResponse as List).length} assigned consumers',
       );
 
-      return (response as List).map((json) => Consumer.fromJson(json)).toList();
+      // Convert the assigned consumers to Consumer entities
+      return (assignmentsResponse as List).map((assignment) {
+        final consumerData = assignment['consumers'] as Map<String, dynamic>;
+        final accountData = consumerData['accounts'] as Map<String, dynamic>?;
+
+        return Consumer(
+          id: consumerData['id'] as String,
+          waterMeterNo: consumerData['water_meter_no'] ?? '',
+          fullName: accountData?['full_name'] ?? '',
+          fullAddress: accountData?['full_address'] ?? '',
+          phone: accountData?['mobile_no']?.toString() ?? '',
+          email: accountData?['email'] ?? '',
+          previousReading: 0.0,
+          currentReading: 0.0,
+          consumptionCubicMeters: 0.0,
+          amountCurrentBilling: 0.0,
+          billingMonth: '',
+          meterReadingDate: '',
+          dueDate: '',
+          status: '',
+          createdAt: DateTime.parse(consumerData['created_at'] as String),
+          updatedAt: DateTime.parse(consumerData['updated_at'] as String),
+        );
+      }).toList();
     } catch (e) {
       print('❌ [MeterReadingRepository] Error fetching consumers: $e');
       throw ServerFailure('Failed to fetch consumers: ${e.toString()}');
@@ -421,8 +519,8 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       print('🔍 [MeterReadingRepository] Fetching consumer by ID: $consumerId');
 
       final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
+          .from('consumers')
+          .select('*')
           .eq('id', consumerId)
           .maybeSingle();
 
@@ -432,10 +530,53 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       }
 
       print('✅ [MeterReadingRepository] Successfully fetched consumer');
-      return Consumer.fromJson(response);
+      return _convertConsumerData(response);
     } catch (e) {
       print('❌ [MeterReadingRepository] Error fetching consumer by ID: $e');
       throw ServerFailure('Failed to fetch consumer by ID: ${e.toString()}');
     }
+  }
+
+  /// Helper method to convert bawasa_meter_readings record to MeterReading entity
+  MeterReading _convertMeterReadingToEntity(
+    Map<String, dynamic> meterReadingData,
+  ) {
+    return MeterReading(
+      id: meterReadingData['id'] as String,
+      user_id_ref: meterReadingData['consumer_id'].toString(),
+      meterType: 'Water',
+      readingValue: (meterReadingData['present_reading'] as num).toDouble(),
+      readingDate: DateTime.parse(meterReadingData['reading_date'] as String),
+      notes: 'Meter reading',
+      photoUrl: null,
+      status: 'confirmed', // Meter readings are confirmed
+      createdAt: DateTime.parse(meterReadingData['created_at'] as String),
+      updatedAt: DateTime.parse(meterReadingData['updated_at'] as String),
+      confirmedBy: 'system',
+      confirmedAt: DateTime.parse(meterReadingData['created_at'] as String),
+    );
+  }
+
+  /// Helper method to convert consumer data to Consumer entity
+  Consumer _convertConsumerData(Map<String, dynamic> consumerData) {
+    return Consumer(
+      id: consumerData['id'] as String,
+      waterMeterNo: consumerData['water_meter_no'] ?? '',
+      fullName: '', // Will need to fetch from accounts table separately
+      fullAddress: '', // Will need to fetch from accounts table separately
+      phone: '', // Will need to fetch from accounts table separately
+      email: '', // Will need to fetch from accounts table separately
+      previousReading:
+          0.0, // Default values since we don't have meter reading data here
+      currentReading: 0.0,
+      consumptionCubicMeters: 0.0,
+      amountCurrentBilling: 0.0,
+      billingMonth: '',
+      meterReadingDate: '',
+      dueDate: '',
+      status: '',
+      createdAt: DateTime.parse(consumerData['created_at'] as String),
+      updatedAt: DateTime.parse(consumerData['updated_at'] as String),
+    );
   }
 }

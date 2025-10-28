@@ -14,10 +14,27 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching current bill for water meter: $waterMeterNo',
       );
 
-      final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
+      // First, get the consumer ID from the water meter number
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
           .eq('water_meter_no', waterMeterNo)
+          .maybeSingle();
+
+      if (consumerResponse == null) {
+        print(
+          'ℹ️ [BillingRepository] No consumer found for water meter: $waterMeterNo',
+        );
+        return null;
+      }
+
+      final consumerId = consumerResponse['id'] as String;
+
+      // Now get the current bill from bawasa_billings table
+      final response = await _supabase
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .inFilter('payment_status', ['unpaid', 'partial', 'overdue'])
           .order('due_date', ascending: true)
           .limit(1);
@@ -47,10 +64,27 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching billing history for water meter: $waterMeterNo',
       );
 
-      final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
+      // First, get the consumer ID from the water meter number
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
           .eq('water_meter_no', waterMeterNo)
+          .maybeSingle();
+
+      if (consumerResponse == null) {
+        print(
+          'ℹ️ [BillingRepository] No consumer found for water meter: $waterMeterNo',
+        );
+        return [];
+      }
+
+      final consumerId = consumerResponse['id'] as String;
+
+      // Now get billing history from bawasa_billings table
+      final response = await _supabase
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .order('due_date', ascending: false);
 
       print('✅ [BillingRepository] Successfully fetched billing history');
@@ -75,10 +109,27 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching billing history for period: $startDate to $endDate',
       );
 
-      final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
+      // First, get the consumer ID from the water meter number
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
           .eq('water_meter_no', waterMeterNo)
+          .maybeSingle();
+
+      if (consumerResponse == null) {
+        print(
+          'ℹ️ [BillingRepository] No consumer found for water meter: $waterMeterNo',
+        );
+        return [];
+      }
+
+      final consumerId = consumerResponse['id'] as String;
+
+      // Now get billing history for the period from bawasa_billings table
+      final response = await _supabase
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .gte('due_date', startDate.toIso8601String().split('T')[0])
           .lte('due_date', endDate.toIso8601String().split('T')[0])
           .order('due_date', ascending: false);
@@ -107,10 +158,27 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching all bills for water meter: $waterMeterNo',
       );
 
-      final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
+      // First, get the consumer ID from the water meter number
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
           .eq('water_meter_no', waterMeterNo)
+          .maybeSingle();
+
+      if (consumerResponse == null) {
+        print(
+          'ℹ️ [BillingRepository] No consumer found for water meter: $waterMeterNo',
+        );
+        return [];
+      }
+
+      final consumerId = consumerResponse['id'] as String;
+
+      // Now get all bills from bawasa_billings table
+      final response = await _supabase
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .order('due_date', ascending: false);
 
       print('✅ [BillingRepository] Successfully fetched all bills');
@@ -131,12 +199,28 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching overdue bills for water meter: $waterMeterNo',
       );
 
+      // First, get the consumer ID from the water meter number
+      final consumerResponse = await _supabase
+          .from('consumers')
+          .select('id')
+          .eq('water_meter_no', waterMeterNo)
+          .maybeSingle();
+
+      if (consumerResponse == null) {
+        print(
+          'ℹ️ [BillingRepository] No consumer found for water meter: $waterMeterNo',
+        );
+        return [];
+      }
+
+      final consumerId = consumerResponse['id'] as String;
       final today = DateTime.now().toIso8601String().split('T')[0];
 
+      // Now get overdue bills from bawasa_billings table
       final response = await _supabase
-          .from('bawasa_consumers')
-          .select()
-          .eq('water_meter_no', waterMeterNo)
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
           .inFilter('payment_status', ['unpaid', 'partial'])
           .lt('due_date', today)
           .order('due_date', ascending: false);
@@ -159,23 +243,17 @@ class BillingRepositoryImpl implements BillingRepository {
         '🔍 [BillingRepository] Fetching bills by consumer ID: $consumerId',
       );
 
-      // First, get the water meter number from the consumer data
-      final consumerResponse = await _supabase
-          .from('bawasa_consumers')
-          .select('water_meter_no')
-          .eq('id', consumerId)
-          .single();
+      // Get all bills for this consumer directly from bawasa_billings table
+      final response = await _supabase
+          .from('bawasa_billings')
+          .select('*')
+          .eq('consumer_id', consumerId)
+          .order('due_date', ascending: false);
 
-      if (consumerResponse.isEmpty) {
-        print('ℹ️ [BillingRepository] No consumer found with ID: $consumerId');
-        return [];
-      }
+      print('✅ [BillingRepository] Successfully fetched bills by consumer ID');
+      print('📊 [BillingRepository] Response data: $response');
 
-      final waterMeterNo = consumerResponse['water_meter_no'] as String;
-      print('🔍 [BillingRepository] Found water meter number: $waterMeterNo');
-
-      // Now fetch all bills for this water meter
-      return await getAllBills(waterMeterNo);
+      return (response as List).map((json) => Billing.fromJson(json)).toList();
     } catch (e) {
       print('❌ [BillingRepository] Error fetching bills by consumer ID: $e');
       print('❌ [BillingRepository] Error type: ${e.runtimeType}');
