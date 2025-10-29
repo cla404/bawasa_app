@@ -4,7 +4,6 @@ import '../../domain/entities/auth_credentials.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
-import 'sign_up.dart';
 import 'consumer/consumer_account_main.dart';
 import 'meter_reader/meter_reader_account_main.dart';
 
@@ -72,25 +71,31 @@ class _SignInState extends State<SignIn> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? screenWidth * 0.15 : 24.0,
+            vertical: isTablet ? 40 : 24.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 40),
+              SizedBox(height: isTablet ? 60 : 40),
 
               // Logo and Title Section
               Column(
                 children: [
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: isTablet ? 100 : 80,
+                    height: isTablet ? 100 : 80,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
                       boxShadow: [
                         BoxShadow(
                           color: Theme.of(
@@ -104,43 +109,46 @@ class _SignInState extends State<SignIn> {
                     child: Icon(
                       Icons.water_drop,
                       color: Colors.white,
-                      size: 40,
+                      size: isTablet ? 50 : 40,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: isTablet ? 32 : 24),
                   Text(
                     'BAWASA',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: isTablet ? 40 : 32,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isTablet ? 12 : 8),
                   Text(
                     'Management System',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: isTablet ? 20 : 16,
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isTablet ? 12 : 8),
                   Text(
                     'Sign in to your account',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: isTablet ? 18 : 14,
+                      color: Colors.grey[500],
+                    ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 48),
+              SizedBox(height: isTablet ? 64 : 48),
 
               // Sign In Form
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isTablet ? 32 : 24),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -158,23 +166,37 @@ class _SignInState extends State<SignIn> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        style: TextStyle(fontSize: isTablet ? 18 : 16),
                         decoration: InputDecoration(
                           labelText: 'Email Address',
                           hintText: 'Enter your email',
+                          labelStyle: TextStyle(fontSize: isTablet ? 16 : 14),
+                          hintStyle: TextStyle(fontSize: isTablet ? 16 : 14),
                           prefixIcon: Icon(
                             Icons.email_outlined,
                             color: Theme.of(context).colorScheme.primary,
+                            size: isTablet ? 28 : 24,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 20 : 16,
+                            vertical: isTablet ? 20 : 16,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,
@@ -196,18 +218,22 @@ class _SignInState extends State<SignIn> {
                         },
                       ),
 
-                      const SizedBox(height: 20),
+                      SizedBox(height: isTablet ? 24 : 20),
 
                       // Password Field
                       TextFormField(
                         controller: _passwordController,
                         obscureText: !_isPasswordVisible,
+                        style: TextStyle(fontSize: isTablet ? 18 : 16),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           hintText: 'Enter your password',
+                          labelStyle: TextStyle(fontSize: isTablet ? 16 : 14),
+                          hintStyle: TextStyle(fontSize: isTablet ? 16 : 14),
                           prefixIcon: Icon(
                             Icons.lock_outlined,
                             color: Theme.of(context).colorScheme.primary,
+                            size: isTablet ? 28 : 24,
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -215,6 +241,7 @@ class _SignInState extends State<SignIn> {
                                   ? Icons.visibility
                                   : Icons.visibility_off,
                               color: Colors.grey[600],
+                              size: isTablet ? 28 : 24,
                             ),
                             onPressed: () {
                               setState(() {
@@ -222,16 +249,26 @@ class _SignInState extends State<SignIn> {
                               });
                             },
                           ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 20 : 16,
+                            vertical: isTablet ? 20 : 16,
+                          ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 14 : 12,
+                            ),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,
@@ -274,7 +311,7 @@ class _SignInState extends State<SignIn> {
                                 'Remember me',
                                 style: TextStyle(
                                   color: Colors.grey[600],
-                                  fontSize: 14,
+                                  fontSize: isTablet ? 16 : 14,
                                 ),
                               ),
                             ],
@@ -295,13 +332,14 @@ class _SignInState extends State<SignIn> {
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
+                                fontSize: isTablet ? 16 : 14,
                               ),
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 24),
+                      SizedBox(height: isTablet ? 32 : 24),
 
                       // Sign In Button
                       BlocConsumer<AuthBloc, AuthState>(
@@ -377,16 +415,20 @@ class _SignInState extends State<SignIn> {
                                 context,
                               ).colorScheme.primary,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: EdgeInsets.symmetric(
+                                vertical: isTablet ? 20 : 16,
+                              ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 14 : 12,
+                                ),
                               ),
                               elevation: 0,
                             ),
                             child: isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
+                                ? SizedBox(
+                                    height: isTablet ? 24 : 20,
+                                    width: isTablet ? 24 : 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
@@ -394,10 +436,10 @@ class _SignInState extends State<SignIn> {
                                       ),
                                     ),
                                   )
-                                : const Text(
+                                : Text(
                                     'Sign In',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: isTablet ? 18 : 16,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -410,13 +452,16 @@ class _SignInState extends State<SignIn> {
               ),
 
               // Sign Up Link
-              const SizedBox(height: 20),
+              SizedBox(height: isTablet ? 32 : 20),
 
               // Footer
               Text(
                 'BAWASA Management System. All rights reserved.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: isTablet ? 14 : 12,
+                ),
               ),
             ],
           ),

@@ -52,8 +52,8 @@ class RecentActivity extends Equatable {
       type: isPaid ? ActivityType.billPaid : ActivityType.billGenerated,
       title: isPaid ? 'Bill Paid' : 'Bill Generated',
       subtitle: isPaid
-          ? 'Amount: \$${billing['total_amount_due']}'
-          : 'Amount: \$${billing['total_amount_due']}',
+          ? 'Amount: ₱${billing['total_amount_due']}'
+          : 'Amount: ₱${billing['total_amount_due']}',
       timestamp: isPaid
           ? DateTime.parse(billing['payment_date'] ?? billing['created_at'])
           : DateTime.parse(billing['created_at']),

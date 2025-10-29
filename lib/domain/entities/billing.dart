@@ -137,7 +137,7 @@ class Billing extends Equatable {
   }
 
   String get formattedAmount {
-    return '\$${totalAmountDue.toStringAsFixed(2)}';
+    return '₱${totalAmountDue.toStringAsFixed(2)}';
   }
 
   String get formattedDueDate {

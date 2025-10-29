@@ -60,20 +60,29 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
   }
 
   String _getTimeAgo(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
+    // Show actual date and time instead of relative time
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} minutes ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} hours ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return '${(difference.inDays / 7).floor()} weeks ago';
-    }
+    final hour = date.hour;
+    final minute = date.minute;
+    final isPM = hour >= 12;
+    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    final minuteStr = minute.toString().padLeft(2, '0');
+
+    return '${months[date.month - 1]} ${date.day}, ${date.year} ${displayHour}:${minuteStr} ${isPM ? 'PM' : 'AM'}';
   }
 
   @override
@@ -150,15 +159,18 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
   }
 
   Widget _buildHomePage() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(isTablet ? 24.0 : 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Section
-            _buildHeader(),
-            const SizedBox(height: 20),
+            _buildHeader(isTablet),
+            SizedBox(height: isTablet ? 32 : 20),
 
             // User Info Card
             BlocBuilder<AuthBloc, AuthState>(
@@ -167,40 +179,40 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                 if (state is AuthAuthenticated) {
                   user = state.user;
                 }
-                return _buildUserInfoCard(user);
+                return _buildUserInfoCard(user, isTablet);
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: isTablet ? 32 : 24),
 
             // Quick Actions Section
-            _buildQuickActionsSection(),
-            const SizedBox(height: 24),
+            _buildQuickActionsSection(isTablet),
+            SizedBox(height: isTablet ? 32 : 24),
 
             // Recent Activity Section
-            _buildRecentActivitySection(),
+            _buildRecentActivitySection(isTablet),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isTablet) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Meter Reader Dashboard',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: isTablet ? 28 : 24,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+            color: const Color(0xFF1A3A5C),
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(isTablet ? 12 : 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
             boxShadow: [
               BoxShadow(
                 color: Colors.grey.withOpacity(0.1),
@@ -210,25 +222,25 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.notifications_outlined,
-            color: Color(0xFF1A3A5C),
-            size: 24,
+            color: const Color(0xFF1A3A5C),
+            size: isTablet ? 28 : 24,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUserInfoCard(User? user) {
+  Widget _buildUserInfoCard(User? user, bool isTablet) {
     final displayName = user?.fullName ?? 'Meter Reader';
     final email = user?.email ?? 'No email';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -241,50 +253,54 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: isTablet ? 60 : 50,
+            height: isTablet ? 60 : 50,
             decoration: BoxDecoration(
               color: const Color(0xFF2ECC71), // Green color for meter readers
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
             ),
-            child: const Icon(Icons.speed, color: Colors.white, size: 24),
+            child: Icon(
+              Icons.speed,
+              color: Colors.white,
+              size: isTablet ? 30 : 24,
+            ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isTablet ? 20 : 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   displayName,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A3A5C),
+                    color: const Color(0xFF1A3A5C),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: isTablet ? 6 : 4),
                 Text(
                   email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    fontSize: isTablet ? 16 : 14,
+                    color: const Color(0xFF6B7280),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: isTablet ? 6 : 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 12 : 8,
+                    vertical: isTablet ? 4 : 2,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2ECC71).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Meter Reader',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF2ECC71),
+                      fontSize: isTablet ? 14 : 12,
+                      color: const Color(0xFF2ECC71),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -294,7 +310,11 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
           ),
           IconButton(
             onPressed: _signOut,
-            icon: const Icon(Icons.logout, color: Color(0xFF6B7280)),
+            icon: Icon(
+              Icons.logout,
+              color: const Color(0xFF6B7280),
+              size: isTablet ? 28 : 24,
+            ),
             tooltip: 'Sign Out',
           ),
         ],
@@ -302,25 +322,25 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
     );
   }
 
-  Widget _buildQuickActionsSection() {
+  Widget _buildQuickActionsSection(bool isTablet) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Quick Actions',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: isTablet ? 24 : 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+            color: const Color(0xFF1A3A5C),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isTablet ? 24 : 16),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
+          crossAxisCount: isTablet ? 3 : 2,
+          crossAxisSpacing: isTablet ? 16 : 12,
+          mainAxisSpacing: isTablet ? 16 : 12,
           childAspectRatio: 1.2,
           children: [
             _buildQuickActionCard(
@@ -333,6 +353,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                   _selectedIndex = 1;
                 });
               },
+              isTablet: isTablet,
             ),
             _buildQuickActionCard(
               icon: Icons.history,
@@ -344,6 +365,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                   _selectedIndex = 2;
                 });
               },
+              isTablet: isTablet,
             ),
           ],
         ),
@@ -357,14 +379,15 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required bool isTablet,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 20 : 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
@@ -378,28 +401,31 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: isTablet ? 60 : 50,
+              height: isTablet ? 60 : 50,
               decoration: BoxDecoration(
                 color: iconColor,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: Colors.white, size: isTablet ? 30 : 24),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isTablet ? 16 : 12),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A3A5C),
+                color: const Color(0xFF1A3A5C),
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: isTablet ? 14 : 12,
+                color: const Color(0xFF6B7280),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -408,22 +434,22 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
     );
   }
 
-  Widget _buildRecentActivitySection() {
+  Widget _buildRecentActivitySection(bool isTablet) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Recent Activity',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: isTablet ? 24 : 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+            color: const Color(0xFF1A3A5C),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isTablet ? 24 : 16),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isTablet ? 24 : 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -437,33 +463,39 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
             ],
           ),
           child: _isLoadingActivities
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
+                    padding: EdgeInsets.all(isTablet ? 32.0 : 20.0),
+                    child: CircularProgressIndicator(
+                      strokeWidth: isTablet ? 3 : 2.5,
+                    ),
                   ),
                 )
               : _recentActivities.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: EdgeInsets.all(isTablet ? 32.0 : 20.0),
                   child: Column(
                     children: [
-                      const Icon(Icons.history, size: 48, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      const Text(
+                      Icon(
+                        Icons.history,
+                        size: isTablet ? 64 : 48,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: isTablet ? 16 : 12),
+                      Text(
                         'No recent activity',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: isTablet ? 18 : 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF6B7280),
+                          color: const Color(0xFF6B7280),
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Your completed readings will appear here',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          fontSize: isTablet ? 14 : 12,
+                          color: const Color(0xFF6B7280),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -500,6 +532,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                           subtitle:
                               '${account?['full_name'] ?? 'Unknown'} - ${latestReading['present_reading']?.toStringAsFixed(0) ?? '0'} m³',
                           time: _getTimeAgo(readingDate),
+                          isTablet: isTablet,
                         ),
                         if (index < _recentActivities.length - 1)
                           const Divider(height: 24),
@@ -518,48 +551,58 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
     required String title,
     required String subtitle,
     required String time,
+    required bool isTablet,
   }) {
     return Row(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: isTablet ? 48 : 40,
+          height: isTablet ? 48 : 40,
           decoration: BoxDecoration(
             color: iconColor,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: Colors.white, size: isTablet ? 24 : 20),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isTablet ? 16 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
+                  color: const Color(0xFF1A3A5C),
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: isTablet ? 4 : 2),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: isTablet ? 14 : 12,
+                  color: const Color(0xFF6B7280),
+                ),
               ),
             ],
           ),
         ),
         Text(
           time,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          style: TextStyle(
+            fontSize: isTablet ? 14 : 12,
+            color: const Color(0xFF6B7280),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildBottomNavigationBar() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -583,19 +626,32 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
         backgroundColor: Colors.white,
         selectedItemColor: const Color(0xFF2ECC71), // Green for meter readers
         unselectedItemColor: const Color(0xFF6B7280),
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
+        selectedLabelStyle: TextStyle(
+          fontSize: isTablet ? 14 : 12,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
+        unselectedLabelStyle: TextStyle(
+          fontSize: isTablet ? 14 : 12,
           fontWeight: FontWeight.normal,
         ),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.speed), label: 'Meter'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        iconSize: isTablet ? 28 : 24,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home, size: isTablet ? 28 : 24),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.speed, size: isTablet ? 28 : 24),
+            label: 'Meter',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history, size: isTablet ? 28 : 24),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person, size: isTablet ? 28 : 24),
+            label: 'Profile',
+          ),
         ],
       ),
     );

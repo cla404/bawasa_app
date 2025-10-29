@@ -11,6 +11,7 @@ class MeterReading {
   final DateTime updatedAt;
   final String? confirmedBy;
   final DateTime? confirmedAt;
+  final double consumption;
 
   MeterReading({
     required this.id,
@@ -25,6 +26,7 @@ class MeterReading {
     required this.updatedAt,
     this.confirmedBy,
     this.confirmedAt,
+    this.consumption = 0.0,
   });
 
   factory MeterReading.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class MeterReading {
       confirmedAt: json['confirmed_at'] != null
           ? DateTime.parse(json['confirmed_at'] as String)
           : null,
+      consumption: (json['consumption'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -92,6 +95,7 @@ class MeterReading {
     DateTime? updatedAt,
     String? confirmedBy,
     DateTime? confirmedAt,
+    double? consumption,
   }) {
     return MeterReading(
       id: id ?? this.id,
@@ -106,12 +110,13 @@ class MeterReading {
       updatedAt: updatedAt ?? this.updatedAt,
       confirmedBy: confirmedBy ?? this.confirmedBy,
       confirmedAt: confirmedAt ?? this.confirmedAt,
+      consumption: consumption ?? this.consumption,
     );
   }
 
   @override
   String toString() {
-    return 'MeterReading(id: $id, user_id_ref: $user_id_ref, meterType: $meterType, readingValue: $readingValue, readingDate: $readingDate, notes: $notes, photoUrl: $photoUrl, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, confirmedBy: $confirmedBy, confirmedAt: $confirmedAt)';
+    return 'MeterReading(id: $id, user_id_ref: $user_id_ref, meterType: $meterType, readingValue: $readingValue, readingDate: $readingDate, notes: $notes, photoUrl: $photoUrl, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, confirmedBy: $confirmedBy, confirmedAt: $confirmedAt, consumption: $consumption)';
   }
 
   @override
@@ -129,7 +134,8 @@ class MeterReading {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.confirmedBy == confirmedBy &&
-        other.confirmedAt == confirmedAt;
+        other.confirmedAt == confirmedAt &&
+        other.consumption == consumption;
   }
 
   @override
@@ -147,6 +153,7 @@ class MeterReading {
       updatedAt,
       confirmedBy,
       confirmedAt,
+      consumption,
     );
   }
 }

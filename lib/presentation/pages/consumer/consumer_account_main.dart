@@ -129,15 +129,18 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
   }
 
   Widget _buildHomePage() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(isTablet ? 24.0 : 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Section
-            _buildHeader(),
-            const SizedBox(height: 20),
+            _buildHeader(isTablet),
+            SizedBox(height: isTablet ? 24 : 20),
 
             // User Info Card
             BlocBuilder<AuthBloc, AuthState>(
@@ -146,18 +149,22 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                 if (state is AuthAuthenticated) {
                   user = state.user;
                 }
-                return _buildUserInfoCard(user);
+                return _buildUserInfoCard(user, isTablet);
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: isTablet ? 32 : 24),
 
             // Consumption Chart Section
-            _buildConsumptionChartSection(),
-            const SizedBox(height: 24),
+            BlocBuilder<ConsumptionBloc, ConsumptionState>(
+              builder: (context, state) {
+                return _buildConsumptionChartSection(isTablet);
+              },
+            ),
+            SizedBox(height: isTablet ? 32 : 24),
 
             // Quick Actions Section
-            _buildQuickActionsSection(),
-            const SizedBox(height: 24),
+            _buildQuickActionsSection(isTablet, screenWidth),
+            SizedBox(height: isTablet ? 32 : 24),
 
             // Recent Activity Section
             _buildRecentActivitySection(),
@@ -167,20 +174,20 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isTablet) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Welcome Back!',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: isTablet ? 28 : 24,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+            color: const Color(0xFF1A3A5C),
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(isTablet ? 12 : 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -193,22 +200,22 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.notifications_outlined,
-            color: Color(0xFF1A3A5C),
-            size: 24,
+            color: const Color(0xFF1A3A5C),
+            size: isTablet ? 28 : 24,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUserInfoCard(User? user) {
+  Widget _buildUserInfoCard(User? user, bool isTablet) {
     final displayName = user?.fullName ?? 'User';
     final email = user?.email ?? 'No email';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -224,33 +231,37 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: isTablet ? 60 : 50,
+            height: isTablet ? 60 : 50,
             decoration: BoxDecoration(
               color: const Color(0xFF4A90E2),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
             ),
-            child: const Icon(Icons.person, color: Colors.white, size: 24),
+            child: Icon(
+              Icons.person,
+              color: Colors.white,
+              size: isTablet ? 28 : 24,
+            ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isTablet ? 20 : 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   displayName,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A3A5C),
+                    color: const Color(0xFF1A3A5C),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: isTablet ? 6 : 4),
                 Text(
                   email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    fontSize: isTablet ? 16 : 14,
+                    color: const Color(0xFF6B7280),
                   ),
                 ),
               ],
@@ -258,7 +269,11 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           ),
           IconButton(
             onPressed: _signOut,
-            icon: const Icon(Icons.logout, color: Color(0xFF6B7280)),
+            icon: Icon(
+              Icons.logout,
+              color: const Color(0xFF6B7280),
+              size: isTablet ? 28 : 24,
+            ),
             tooltip: 'Sign Out',
           ),
         ],
@@ -266,12 +281,12 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     );
   }
 
-  Widget _buildConsumptionChartSection() {
+  Widget _buildConsumptionChartSection(bool isTablet) {
     return BlocBuilder<ConsumptionBloc, ConsumptionState>(
       builder: (context, state) {
         if (state is ConsumptionLoading) {
           return Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isTablet ? 20 : 16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -301,7 +316,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
 
         if (state is ConsumptionError) {
           return Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isTablet ? 20 : 16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -358,32 +373,37 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     );
   }
 
-  Widget _buildQuickActionsSection() {
+  Widget _buildQuickActionsSection(bool isTablet, double screenWidth) {
+    final crossAxisCount = isTablet ? 3 : 2;
+    final padding = isTablet ? 20.0 : 16.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Quick Actions',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: isTablet ? 24 : 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
+            color: const Color(0xFF1A3A5C),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isTablet ? 20 : 16),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.2,
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: isTablet ? 16 : 12,
+          mainAxisSpacing: isTablet ? 16 : 12,
+          childAspectRatio: isTablet ? 1.3 : 1.2,
+          padding: EdgeInsets.all(padding),
           children: [
             _buildQuickActionCard(
               icon: Icons.speed,
               iconColor: Colors.green,
               title: 'Meter Readings',
               subtitle: 'Record meter reading',
+              isTablet: isTablet,
               onTap: () {
                 setState(() {
                   _selectedIndex = 1;
@@ -395,6 +415,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
               iconColor: Colors.orange,
               title: 'View Bills',
               subtitle: 'Check billing history',
+              isTablet: isTablet,
               onTap: () {
                 setState(() {
                   _selectedIndex = 2;
@@ -406,26 +427,13 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
               iconColor: Colors.red,
               title: 'Report Issue',
               subtitle: 'Report problems',
+              isTablet: isTablet,
               onTap: () {
                 setState(() {
                   _selectedIndex = 3;
                 });
               },
             ),
-            // _buildQuickActionCard(
-            //   icon: Icons.history,
-            //   iconColor: Colors.purple,
-            //   title: 'Usage History',
-            //   subtitle: 'View consumption',
-            //   onTap: () {
-            //     ScaffoldMessenger.of(context).showSnackBar(
-            //       const SnackBar(
-            //         content: Text('Usage history feature coming soon!'),
-            //         backgroundColor: Colors.blue,
-            //       ),
-            //     );
-            //   },
-            // ),
           ],
         ),
       ],
@@ -437,12 +445,13 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     required Color iconColor,
     required String title,
     required String subtitle,
+    required bool isTablet,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 20 : 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -459,28 +468,31 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: isTablet ? 60 : 50,
+              height: isTablet ? 60 : 50,
               decoration: BoxDecoration(
                 color: iconColor,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: Colors.white, size: isTablet ? 28 : 24),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isTablet ? 16 : 12),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A3A5C),
+                color: const Color(0xFF1A3A5C),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: isTablet ? 6 : 4),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: isTablet ? 14 : 12,
+                color: const Color(0xFF6B7280),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -490,18 +502,21 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
   }
 
   Widget _buildRecentActivitySection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Recent Activity',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: isTablet ? 24 : 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A3A5C),
+                color: const Color(0xFF1A3A5C),
               ),
             ),
             TextButton(
@@ -510,9 +525,12 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                   const RefreshRecentActivities(),
                 );
               },
-              child: const Text(
+              child: Text(
                 'Refresh',
-                style: TextStyle(color: Color(0xFF4A90E2), fontSize: 14),
+                style: TextStyle(
+                  color: const Color(0xFF4A90E2),
+                  fontSize: isTablet ? 16 : 14,
+                ),
               ),
             ),
           ],
@@ -521,8 +539,9 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
         BlocBuilder<RecentActivityBloc, RecentActivityState>(
           builder: (context, state) {
             if (state is RecentActivityLoading) {
+              final isTablet = MediaQuery.of(context).size.width > 600;
               return Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -540,8 +559,9 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
             }
 
             if (state is RecentActivityError) {
+              final isTablet = MediaQuery.of(context).size.width > 600;
               return Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -595,9 +615,10 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
 
             if (state is RecentActivityLoaded) {
               if (state.activities.isEmpty) {
+                final isTablet = MediaQuery.of(context).size.width > 600;
                 return Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(isTablet ? 20 : 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -640,8 +661,9 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                 );
               }
 
+              final isTablet = MediaQuery.of(context).size.width > 600;
               return Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -667,6 +689,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                             title: activity.title,
                             subtitle: activity.subtitle,
                             time: activity.timeAgo,
+                            isTablet: screenWidth > 600,
                           ),
                           if (index < state.activities.length - 1)
                             const Divider(height: 24),
@@ -678,8 +701,9 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
               );
             }
 
+            final isTablet = MediaQuery.of(context).size.width > 600;
             return Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isTablet ? 20 : 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -706,42 +730,49 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     required String title,
     required String subtitle,
     required String time,
+    required bool isTablet,
   }) {
     return Row(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: isTablet ? 50 : 40,
+          height: isTablet ? 50 : 40,
           decoration: BoxDecoration(
             color: iconColor,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(isTablet ? 25 : 20),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: Colors.white, size: isTablet ? 24 : 20),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isTablet ? 16 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
+                  color: const Color(0xFF1A3A5C),
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: isTablet ? 4 : 2),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: isTablet ? 14 : 12,
+                  color: const Color(0xFF6B7280),
+                ),
               ),
             ],
           ),
         ),
         Text(
           time,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          style: TextStyle(
+            fontSize: isTablet ? 14 : 12,
+            color: const Color(0xFF6B7280),
+          ),
         ),
       ],
     );
@@ -780,6 +811,9 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
   }
 
   Widget _buildBottomNavigationBar() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -803,23 +837,36 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
         backgroundColor: Colors.white,
         selectedItemColor: const Color(0xFF4A90E2),
         unselectedItemColor: const Color(0xFF6B7280),
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
+        selectedLabelStyle: TextStyle(
+          fontSize: isTablet ? 14 : 12,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
+        unselectedLabelStyle: TextStyle(
+          fontSize: isTablet ? 14 : 12,
           fontWeight: FontWeight.normal,
         ),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.speed), label: 'Meter'),
+        iconSize: isTablet ? 28 : 24,
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
+            icon: Icon(Icons.home, size: isTablet ? 28 : 24),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.speed, size: isTablet ? 28 : 24),
+            label: 'Meter',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long, size: isTablet ? 28 : 24),
             label: 'Billing',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.warning), label: 'Issues'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.warning, size: isTablet ? 28 : 24),
+            label: 'Issues',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person, size: isTablet ? 28 : 24),
+            label: 'Profile',
+          ),
         ],
       ),
     );

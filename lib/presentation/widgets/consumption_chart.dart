@@ -16,8 +16,11 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -33,13 +36,13 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
+          _buildHeader(isTablet),
+          SizedBox(height: isTablet ? 20 : 16),
           _buildChart(),
-          const SizedBox(height: 16),
+          SizedBox(height: isTablet ? 20 : 16),
           _buildComparisonToggle(),
           if (_showComparison) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: isTablet ? 20 : 16),
             _buildComparisonInfo(),
           ],
         ],
@@ -47,13 +50,13 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
     );
   }
 
-  Widget _buildHeader() {
-    return const Text(
+  Widget _buildHeader(bool isTablet) {
+    return Text(
       'Water Consumption',
       style: TextStyle(
-        fontSize: 18,
+        fontSize: isTablet ? 22 : 18,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF1A3A5C),
+        color: const Color(0xFF1A3A5C),
       ),
     );
   }
@@ -213,6 +216,9 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
   }
 
   Widget _buildComparisonToggle() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return Row(
       children: [
         Switch(
@@ -224,10 +230,13 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
           },
           activeColor: const Color(0xFF4A90E2),
         ),
-        const SizedBox(width: 8),
-        const Text(
+        SizedBox(width: isTablet ? 12 : 8),
+        Text(
           'Compare with previous period',
-          style: TextStyle(fontSize: 14, color: Color(0xFF1A3A5C)),
+          style: TextStyle(
+            fontSize: isTablet ? 16 : 14,
+            color: const Color(0xFF1A3A5C),
+          ),
         ),
       ],
     );
@@ -303,20 +312,30 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
   }
 
   List<double> _getChartData() {
-    final now = DateTime.now();
-    return _getMonthlyData(now);
+    return _getMonthlyData();
   }
 
   List<double> _getComparisonData() {
     final now = DateTime.now();
-    return _getMonthlyData(DateTime(now.year - 1, now.month));
+    // Get data from same period last year
+    final data = <double>[];
+    for (int i = 5; i >= 0; i--) {
+      final year = now.year - 1;
+      final monthStart = DateTime(year, now.month - i, 1);
+      final monthEnd = DateTime(year, now.month - i + 1, 0);
+      final consumption = _getConsumptionForDateRange(monthStart, monthEnd);
+      data.add(consumption);
+    }
+    return data;
   }
 
-  List<double> _getMonthlyData(DateTime startDate) {
+  List<double> _getMonthlyData() {
+    final now = DateTime.now();
     final data = <double>[];
-    for (int i = 0; i < 6; i++) {
-      final monthStart = DateTime(startDate.year, startDate.month + i, 1);
-      final monthEnd = DateTime(startDate.year, startDate.month + i + 1, 0);
+    // Start from 5 months ago
+    for (int i = 5; i >= 0; i--) {
+      final monthStart = DateTime(now.year, now.month - i, 1);
+      final monthEnd = DateTime(now.year, now.month - i + 1, 0);
       final consumption = _getConsumptionForDateRange(monthStart, monthEnd);
       data.add(consumption);
     }
@@ -332,17 +351,26 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
           reading.readingDate.isBefore(endDate.add(const Duration(days: 1)));
     }).toList();
 
-    if (readings.length < 2) return 0.0;
+    if (readings.isEmpty) return 0.0;
 
     // Sort by reading date
     readings.sort((a, b) => a.readingDate.compareTo(b.readingDate));
 
-    // Calculate total consumption
+    // Sum up the consumption from the database (for each reading)
     double totalConsumption = 0.0;
-    for (int i = 1; i < readings.length; i++) {
-      final consumption =
-          readings[i].readingValue - readings[i - 1].readingValue;
-      totalConsumption += consumption > 0 ? consumption : 0.0;
+    for (var reading in readings) {
+      if (reading.consumption > 0) {
+        totalConsumption += reading.consumption;
+      }
+    }
+
+    // If no database consumption values, calculate from reading values
+    if (totalConsumption == 0 && readings.length >= 2) {
+      for (int i = 1; i < readings.length; i++) {
+        final consumption =
+            readings[i].readingValue - readings[i - 1].readingValue;
+        totalConsumption += consumption > 0 ? consumption : 0.0;
+      }
     }
 
     return totalConsumption;
@@ -350,6 +378,7 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
 
   DateTime _getDateForIndex(int index) {
     final now = DateTime.now();
+    // Index 0 is 5 months ago, index 5 is current month
     return DateTime(now.year, now.month - (5 - index));
   }
 

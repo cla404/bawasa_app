@@ -747,19 +747,27 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
   MeterReading _convertMeterReadingToEntity(
     Map<String, dynamic> meterReadingData,
   ) {
+    final createdAt = DateTime.parse(meterReadingData['created_at'] as String);
+    final updatedAt = meterReadingData['updated_at'] != null
+        ? DateTime.parse(meterReadingData['updated_at'] as String)
+        : createdAt;
+
     return MeterReading(
       id: meterReadingData['id'] as String,
       user_id_ref: meterReadingData['consumer_id'].toString(),
       meterType: 'Water',
       readingValue: (meterReadingData['present_reading'] as num).toDouble(),
-      readingDate: DateTime.parse(meterReadingData['created_at'] as String),
+      readingDate: createdAt,
       notes: meterReadingData['remarks'] as String?,
       photoUrl: meterReadingData['meter_image'] as String?,
       status: 'confirmed', // Meter readings are confirmed
-      createdAt: DateTime.parse(meterReadingData['created_at'] as String),
-      updatedAt: DateTime.parse(meterReadingData['updated_at'] as String),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
       confirmedBy: 'system',
-      confirmedAt: DateTime.parse(meterReadingData['created_at'] as String),
+      confirmedAt: createdAt,
+      consumption:
+          (meterReadingData['consumption_cubic_meters'] as num?)?.toDouble() ??
+          0.0,
     );
   }
 
