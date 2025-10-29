@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../domain/entities/user.dart';
+import '../../../domain/repositories/meter_reading_repository.dart';
 import '../consumer/profile_page.dart';
 import '../sign_in.dart';
 import 'meter_reader_submission_page.dart';
+import 'meter_reader_history_page.dart';
 
 class MeterReaderAccountMain extends StatefulWidget {
   const MeterReaderAccountMain({super.key});
@@ -17,9 +20,60 @@ class MeterReaderAccountMain extends StatefulWidget {
 
 class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
   int _selectedIndex = 0;
+  List<Map<String, dynamic>> _recentActivities = [];
+  bool _isLoadingActivities = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecentActivities();
+  }
 
   void _signOut() {
     context.read<AuthBloc>().add(SignOutRequested());
+  }
+
+  Future<void> _loadRecentActivities() async {
+    setState(() {
+      _isLoadingActivities = true;
+    });
+
+    try {
+      final repository = GetIt.instance<MeterReadingRepository>();
+      final completedReadings = await repository.getCompletedMeterReadings();
+
+      // Limit to most recent 5 activities
+      final recentReadings = (completedReadings.length > 5
+          ? completedReadings.take(5).toList()
+          : completedReadings);
+
+      setState(() {
+        _recentActivities = recentReadings;
+        _isLoadingActivities = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingActivities = false;
+      });
+      print('Error loading recent activities: $e');
+    }
+  }
+
+  String _getTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} minutes ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${(difference.inDays / 7).floor()} weeks ago';
+    }
   }
 
   @override
@@ -87,6 +141,8 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
       case 1:
         return const MeterReaderSubmissionPage();
       case 2:
+        return const MeterReaderHistoryPage();
+      case 3:
         return const ProfilePage();
       default:
         return _buildHomePage();
@@ -284,40 +340,9 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
               title: 'Reading History',
               subtitle: 'View past readings',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Reading history feature coming soon!'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
-              },
-            ),
-            _buildQuickActionCard(
-              icon: Icons.assignment,
-              iconColor: Colors.orange,
-              title: 'Daily Tasks',
-              subtitle: 'View assigned routes',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Daily tasks feature coming soon!'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
-              },
-            ),
-            _buildQuickActionCard(
-              icon: Icons.report,
-              iconColor: Colors.red,
-              title: 'Reports',
-              subtitle: 'Generate reports',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Reports feature coming soon!'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
+                setState(() {
+                  _selectedIndex = 2;
+                });
               },
             ),
           ],
@@ -397,6 +422,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
         ),
         const SizedBox(height: 16),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -410,33 +436,77 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
               ),
             ],
           ),
-          child: Column(
-            children: [
-              _buildActivityItem(
-                icon: Icons.speed,
-                iconColor: const Color(0xFF2ECC71),
-                title: 'Meter Reading Submitted',
-                subtitle: 'Reading: 1,250 cubic meters',
-                time: '2 hours ago',
-              ),
-              const Divider(height: 24),
-              _buildActivityItem(
-                icon: Icons.location_on,
-                iconColor: Colors.blue,
-                title: 'Route Completed',
-                subtitle: '15 meters read today',
-                time: '4 hours ago',
-              ),
-              const Divider(height: 24),
-              _buildActivityItem(
-                icon: Icons.check_circle,
-                iconColor: Colors.green,
-                title: 'Task Completed',
-                subtitle: 'All assigned readings done',
-                time: '1 day ago',
-              ),
-            ],
-          ),
+          child: _isLoadingActivities
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : _recentActivities.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.history, size: 48, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No recent activity',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Your completed readings will appear here',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: _recentActivities.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final activity = entry.value;
+                    final consumer =
+                        activity['consumers'] as Map<String, dynamic>;
+                    final account =
+                        consumer['accounts'] as Map<String, dynamic>?;
+                    final meterReadings =
+                        activity['bawasa_meter_readings'] as List;
+
+                    if (meterReadings.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final latestReading =
+                        meterReadings[0] as Map<String, dynamic>;
+                    final readingDate = DateTime.parse(
+                      latestReading['created_at'],
+                    );
+
+                    return Column(
+                      children: [
+                        _buildActivityItem(
+                          icon: Icons.speed,
+                          iconColor: const Color(0xFF2ECC71),
+                          title: 'Meter Reading Submitted',
+                          subtitle:
+                              '${account?['full_name'] ?? 'Unknown'} - ${latestReading['present_reading']?.toStringAsFixed(0) ?? '0'} m³',
+                          time: _getTimeAgo(readingDate),
+                        ),
+                        if (index < _recentActivities.length - 1)
+                          const Divider(height: 24),
+                      ],
+                    );
+                  }).toList(),
+                ),
         ),
       ],
     );
@@ -524,6 +594,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.speed), label: 'Meter'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),

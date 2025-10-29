@@ -14,12 +14,35 @@ import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseConfig.initialize();
-  await init();
+
+  try {
+    print('🚀 Initializing Supabase...');
+    await SupabaseConfig.initialize();
+    print('✅ Supabase initialized successfully');
+  } catch (e) {
+    print('❌ Error initializing Supabase: $e');
+    // Continue anyway, but Supabase might not work
+  }
+
+  try {
+    print('🚀 Initializing dependency injection...');
+    await init();
+    print('✅ Dependency injection initialized successfully');
+  } catch (e) {
+    print('❌ Error initializing dependency injection: $e');
+    rethrow;
+  }
 
   // Initialize Supabase accounts auth repository
-  final supabaseAccountsAuthRepo = sl<SupabaseAccountsAuthRepositoryImpl>();
-  await supabaseAccountsAuthRepo.loadUserFromStorage();
+  try {
+    print('🚀 Loading user from storage...');
+    final supabaseAccountsAuthRepo = sl<SupabaseAccountsAuthRepositoryImpl>();
+    await supabaseAccountsAuthRepo.loadUserFromStorage();
+    print('✅ User loaded from storage successfully');
+  } catch (e) {
+    print('⚠️  Error loading user from storage: $e');
+    // Continue anyway, user will need to sign in
+  }
 
   runApp(const MyApp());
 }

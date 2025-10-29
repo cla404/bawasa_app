@@ -2,31 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../domain/entities/meter_reading.dart';
 
-enum ChartPeriod { daily, weekly, monthly }
-
 class ConsumptionChart extends StatefulWidget {
   final List<MeterReading> meterReadings;
-  final ChartPeriod initialPeriod;
 
-  const ConsumptionChart({
-    super.key,
-    required this.meterReadings,
-    this.initialPeriod = ChartPeriod.monthly,
-  });
+  const ConsumptionChart({super.key, required this.meterReadings});
 
   @override
   State<ConsumptionChart> createState() => _ConsumptionChartState();
 }
 
 class _ConsumptionChartState extends State<ConsumptionChart> {
-  ChartPeriod _selectedPeriod = ChartPeriod.monthly;
   bool _showComparison = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedPeriod = widget.initialPeriod;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,8 +35,6 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
         children: [
           _buildHeader(),
           const SizedBox(height: 16),
-          _buildPeriodSelector(),
-          const SizedBox(height: 16),
           _buildChart(),
           const SizedBox(height: 16),
           _buildComparisonToggle(),
@@ -64,75 +48,13 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
   }
 
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Water Consumption',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1A3A5C),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF4A90E2).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            _getPeriodLabel(_selectedPeriod),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4A90E2),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPeriodSelector() {
-    return Row(
-      children: ChartPeriod.values.map((period) {
-        final isSelected = _selectedPeriod == period;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedPeriod = period;
-              });
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF4A90E2)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF4A90E2)
-                      : Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                _getPeriodLabel(period),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? Colors.white : Colors.grey.shade600,
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+    return const Text(
+      'Water Consumption',
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1A3A5C),
+      ),
     );
   }
 
@@ -350,7 +272,7 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${percentageChange.abs().toStringAsFixed(1)}% ${percentageChange > 0 ? 'increase' : 'decrease'} compared to previous ${_getPeriodLabel(_selectedPeriod).toLowerCase()}',
+              '${percentageChange.abs().toStringAsFixed(1)}% ${percentageChange > 0 ? 'increase' : 'decrease'} compared to previous period',
               style: TextStyle(
                 fontSize: 12,
                 color: percentageChange > 0 ? Colors.red : Colors.green,
@@ -363,35 +285,12 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
     );
   }
 
-  String _getPeriodLabel(ChartPeriod period) {
-    switch (period) {
-      case ChartPeriod.daily:
-        return 'Daily';
-      case ChartPeriod.weekly:
-        return 'Weekly';
-      case ChartPeriod.monthly:
-        return 'Monthly';
-    }
-  }
-
   Widget _getBottomTitle(double value, TitleMeta meta) {
     final chartData = _getChartData();
     if (value >= chartData.length) return const SizedBox.shrink();
 
     final date = _getDateForIndex(value.toInt());
-    String label = '';
-
-    switch (_selectedPeriod) {
-      case ChartPeriod.daily:
-        label = '${date.day}/${date.month}';
-        break;
-      case ChartPeriod.weekly:
-        label = 'W${_getWeekNumber(date)}';
-        break;
-      case ChartPeriod.monthly:
-        label = _getMonthName(date.month);
-        break;
-    }
+    final label = _getMonthName(date.month);
 
     return Text(
       label,
@@ -405,61 +304,12 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
 
   List<double> _getChartData() {
     final now = DateTime.now();
-    List<double> data = [];
-
-    switch (_selectedPeriod) {
-      case ChartPeriod.daily:
-        data = _getDailyData(now);
-        break;
-      case ChartPeriod.weekly:
-        data = _getWeeklyData(now);
-        break;
-      case ChartPeriod.monthly:
-        data = _getMonthlyData(now);
-        break;
-    }
-
-    return data;
+    return _getMonthlyData(now);
   }
 
   List<double> _getComparisonData() {
     final now = DateTime.now();
-    List<double> data = [];
-
-    switch (_selectedPeriod) {
-      case ChartPeriod.daily:
-        data = _getDailyData(now.subtract(const Duration(days: 7)));
-        break;
-      case ChartPeriod.weekly:
-        data = _getWeeklyData(now.subtract(const Duration(days: 28)));
-        break;
-      case ChartPeriod.monthly:
-        data = _getMonthlyData(DateTime(now.year - 1, now.month));
-        break;
-    }
-
-    return data;
-  }
-
-  List<double> _getDailyData(DateTime startDate) {
-    final data = <double>[];
-    for (int i = 0; i < 7; i++) {
-      final date = startDate.add(Duration(days: i));
-      final consumption = _getConsumptionForDate(date);
-      data.add(consumption);
-    }
-    return data;
-  }
-
-  List<double> _getWeeklyData(DateTime startDate) {
-    final data = <double>[];
-    for (int i = 0; i < 4; i++) {
-      final weekStart = startDate.add(Duration(days: i * 7));
-      final weekEnd = weekStart.add(const Duration(days: 6));
-      final consumption = _getConsumptionForDateRange(weekStart, weekEnd);
-      data.add(consumption);
-    }
-    return data;
+    return _getMonthlyData(DateTime(now.year - 1, now.month));
   }
 
   List<double> _getMonthlyData(DateTime startDate) {
@@ -471,30 +321,6 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
       data.add(consumption);
     }
     return data;
-  }
-
-  double _getConsumptionForDate(DateTime date) {
-    // Find meter readings for this date
-    final readings = widget.meterReadings.where((reading) {
-      return reading.readingDate.year == date.year &&
-          reading.readingDate.month == date.month &&
-          reading.readingDate.day == date.day;
-    }).toList();
-
-    if (readings.length < 2) return 0.0;
-
-    // Sort by reading date
-    readings.sort((a, b) => a.readingDate.compareTo(b.readingDate));
-
-    // Calculate consumption between readings
-    double totalConsumption = 0.0;
-    for (int i = 1; i < readings.length; i++) {
-      final consumption =
-          readings[i].readingValue - readings[i - 1].readingValue;
-      totalConsumption += consumption > 0 ? consumption : 0.0;
-    }
-
-    return totalConsumption;
   }
 
   double _getConsumptionForDateRange(DateTime startDate, DateTime endDate) {
@@ -524,20 +350,7 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
 
   DateTime _getDateForIndex(int index) {
     final now = DateTime.now();
-    switch (_selectedPeriod) {
-      case ChartPeriod.daily:
-        return now.subtract(Duration(days: 6 - index));
-      case ChartPeriod.weekly:
-        return now.subtract(Duration(days: (3 - index) * 7));
-      case ChartPeriod.monthly:
-        return DateTime(now.year, now.month - (5 - index));
-    }
-  }
-
-  int _getWeekNumber(DateTime date) {
-    final startOfYear = DateTime(date.year, 1, 1);
-    final dayOfYear = date.difference(startOfYear).inDays;
-    return (dayOfYear / 7).ceil();
+    return DateTime(now.year, now.month - (5 - index));
   }
 
   String _getMonthName(int month) {

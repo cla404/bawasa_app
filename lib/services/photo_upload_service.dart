@@ -32,8 +32,8 @@ class PhotoUploadService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'meter_reading_$timestamp.jpg';
 
-      // Create folder structure: meter_image/consumer_{consumer_id}/filename
-      final filePath = 'meter_image/consumer_$consumerId/$fileName';
+      // Create folder structure: consumer_{consumer_id}/filename
+      final filePath = 'consumer_$consumerId/$fileName';
 
       print('📸 [PhotoUploadService] Uploading to path: $filePath');
       print('📸 [PhotoUploadService] Consumer ID: $consumerId');

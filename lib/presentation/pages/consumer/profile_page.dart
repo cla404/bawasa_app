@@ -102,10 +102,6 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildProfileInfoSection(),
               const SizedBox(height: 20),
 
-              // Account Settings
-              _buildAccountSettingsSection(),
-              const SizedBox(height: 20),
-
               // App Settings
               _buildAppSettingsSection(),
             ],
@@ -332,92 +328,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAccountSettingsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.settings_outlined,
-                color: Color(0xFF4A90E2),
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Account Settings',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          _buildSettingItem(
-            icon: Icons.lock_outline,
-            title: 'Change Password',
-            subtitle: 'Update your password',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Change password feature coming soon!'),
-                  backgroundColor: Colors.blue,
-                ),
-              );
-            },
-          ),
-          const Divider(height: 24),
-
-          _buildSettingItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notification Settings',
-            subtitle: 'Manage your notifications',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notification settings coming soon!'),
-                  backgroundColor: Colors.blue,
-                ),
-              );
-            },
-          ),
-          const Divider(height: 24),
-
-          _buildSettingItem(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Settings',
-            subtitle: 'Manage your privacy preferences',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Privacy settings coming soon!'),
-                  backgroundColor: Colors.blue,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 

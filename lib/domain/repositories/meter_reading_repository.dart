@@ -46,4 +46,7 @@ abstract class MeterReadingRepository {
 
   /// Get consumer by ID
   Future<Consumer?> getConsumerById(String consumerId);
+
+  /// Get completed meter readings for meter reader
+  Future<List<Map<String, dynamic>>> getCompletedMeterReadings();
 }

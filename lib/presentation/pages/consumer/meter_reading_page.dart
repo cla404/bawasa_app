@@ -4,6 +4,7 @@ import '../../bloc/meter_reading_bloc.dart';
 import '../../bloc/consumer_bloc.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../../../domain/entities/meter_reading.dart';
 import '../../../services/camera_service.dart';
 import 'dart:io';
 
@@ -30,13 +31,12 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
     print('📱 [MeterReadingPage] Initializing meter reading page...');
     // Load meter readings when the page initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // COMMENTED OUT: Stop fetching meter readings due to database schema issues
-      // print('📱 [MeterReadingPage] Dispatching LoadMeterReadings event...');
-      // context.read<MeterReadingBloc>().add(LoadMeterReadings());
-      // print(
-      //   '📱 [MeterReadingPage] Dispatching LoadLatestMeterReading event...',
-      // );
-      // context.read<MeterReadingBloc>().add(LoadLatestMeterReading());
+      print('📱 [MeterReadingPage] Dispatching LoadMeterReadings event...');
+      context.read<MeterReadingBloc>().add(LoadMeterReadings());
+      print(
+        '📱 [MeterReadingPage] Dispatching LoadLatestMeterReading event...',
+      );
+      context.read<MeterReadingBloc>().add(LoadLatestMeterReading());
 
       // Load consumer details
       print('📱 [MeterReadingPage] Dispatching LoadConsumerDetails event...');
@@ -281,7 +281,7 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
                 backgroundColor: const Color(0xFFF5F7FA),
                 appBar: AppBar(
                   title: const Text(
-                    'Meter Reading',
+                    'Meter Reading History',
                     style: TextStyle(
                       color: Color(0xFF1A3A5C),
                       fontWeight: FontWeight.bold,
@@ -298,8 +298,10 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Consumer Details Card
-                        _buildConsumerDetailsCard(consumerState),
-                        const SizedBox(height: 24),
+                        // _buildConsumerDetailsCard(consumerState),
+                        // const SizedBox(height: 24),
+                        // Meter Readings List
+                        _buildMeterReadingsList(meterReadingState),
                       ],
                     ),
                   ),
@@ -505,19 +507,6 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
   Widget _buildReadingItem({
     required String reading,
     required String date,
@@ -572,6 +561,552 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMeterReadingsList(MeterReadingState state) {
+    // Show title
+    // Widget header = const Text(
+    //   'Meter Reading History',
+    //   style: TextStyle(
+    //     fontSize: 18,
+    //     fontWeight: FontWeight.bold,
+    //     color: Color(0xFF1A3A5C),
+    //   ),
+    // );
+
+    if (state is MeterReadingLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      );
+    }
+
+    if (state is MeterReadingError) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Error loading meter readings',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A3A5C),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B7280),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (state is MeterReadingLoaded) {
+      if (state.readings.isEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // header,
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.speed, color: Color(0xFF6B7280), size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No meter readings yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A3A5C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Your meter reading history will appear here',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: state.readings.asMap().entries.map((entry) {
+                final index = entry.key;
+                final reading = entry.value;
+                final consumption =
+                    reading.readingValue -
+                    (index < state.readings.length - 1
+                        ? state.readings[index + 1].readingValue
+                        : 0.0);
+                final previousReading = index < state.readings.length - 1
+                    ? state.readings[index + 1].readingValue
+                    : 0.0;
+
+                return Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showMeterReadingDetails(
+                        reading: reading,
+                        consumption: consumption,
+                        previousReading: previousReading,
+                      ),
+                      child: _buildMeterReadingItem(
+                        reading: reading.readingValue,
+                        consumption: consumption,
+                        date: reading.readingDate,
+                        status: reading.status,
+                      ),
+                    ),
+                    if (index < state.readings.length - 1)
+                      const Divider(height: 24),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // header,
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMeterReadingItem({
+    required double reading,
+    required double consumption,
+    required DateTime date,
+    required String status,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFF4A90E2).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: const Icon(Icons.speed, color: Color(0xFF4A90E2), size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reading',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${reading.toStringAsFixed(2)} m³',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A3A5C),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Consumption',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${consumption.toStringAsFixed(2)} m³',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4A90E2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${date.day}/${date.month}/${date.year}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getStatusColor(status).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            status,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _getStatusColor(status),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      case 'submitted':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _normalizeImageUrl(String url) {
+    // Fix duplicated bucket name in URL
+    // e.g., /meter_image/meter_image/ -> /meter_image/
+    final normalized = url.replaceAll(
+      '/meter_image/meter_image/',
+      '/meter_image/',
+    );
+    return normalized;
+  }
+
+  void _showMeterReadingDetails({
+    required MeterReading reading,
+    required double consumption,
+    required double previousReading,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Meter Reading Details',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A3A5C),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Photo Section
+                      if (reading.photoUrl != null &&
+                          reading.photoUrl!.isNotEmpty) ...[
+                        const Text(
+                          'Meter Photo',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A3A5C),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 200,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              _normalizeImageUrl(reading.photoUrl!),
+                              fit: BoxFit.cover,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey.shade100,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value:
+                                              loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                              errorBuilder: (context, error, stackTrace) {
+                                print(
+                                  '❌ [MeterReadingPage] Error loading image: $error',
+                                );
+                                print(
+                                  '❌ [MeterReadingPage] URL: ${reading.photoUrl}',
+                                );
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  child: const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.broken_image,
+                                          color: Colors.grey,
+                                          size: 48,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Unable to load image',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Reading Information
+                      const Text(
+                        'Reading Information',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A3A5C),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDetailRow('Status', reading.status),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Previous Reading',
+                        '${previousReading.toStringAsFixed(2)} m³',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Present Reading',
+                        '${reading.readingValue.toStringAsFixed(2)} m³',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Consumption',
+                        '${consumption.toStringAsFixed(2)} m³',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Reading Date',
+                        '${reading.readingDate.day}/${reading.readingDate.month}/${reading.readingDate.year}',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Reading Time',
+                        '${reading.readingDate.hour.toString().padLeft(2, '0')}:${reading.readingDate.minute.toString().padLeft(2, '0')}',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Meter Type', reading.meterType),
+
+                      // Remarks
+                      if (reading.notes != null &&
+                          reading.notes!.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Remarks',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A3A5C),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            reading.notes!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -350,10 +350,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
         }
 
         if (state is ConsumptionLoaded) {
-          return ConsumptionChart(
-            meterReadings: state.meterReadings,
-            initialPeriod: ChartPeriod.monthly,
-          );
+          return ConsumptionChart(meterReadings: state.meterReadings);
         }
 
         return const SizedBox.shrink();
@@ -385,7 +382,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
             _buildQuickActionCard(
               icon: Icons.speed,
               iconColor: Colors.green,
-              title: 'Submit Reading',
+              title: 'Meter Readings',
               subtitle: 'Record meter reading',
               onTap: () {
                 setState(() {
@@ -415,20 +412,20 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                 });
               },
             ),
-            _buildQuickActionCard(
-              icon: Icons.history,
-              iconColor: Colors.purple,
-              title: 'Usage History',
-              subtitle: 'View consumption',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Usage history feature coming soon!'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
-              },
-            ),
+            // _buildQuickActionCard(
+            //   icon: Icons.history,
+            //   iconColor: Colors.purple,
+            //   title: 'Usage History',
+            //   subtitle: 'View consumption',
+            //   onTap: () {
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //       const SnackBar(
+            //         content: Text('Usage history feature coming soon!'),
+            //         backgroundColor: Colors.blue,
+            //       ),
+            //     );
+            //   },
+            // ),
           ],
         ),
       ],
@@ -599,6 +596,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
             if (state is RecentActivityLoaded) {
               if (state.activities.isEmpty) {
                 return Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,

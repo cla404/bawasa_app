@@ -183,43 +183,89 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _consumers.length,
-                  itemBuilder: (context, index) {
-                    final consumer = _consumers[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          consumer.fullName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A3A5C),
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                child: _consumers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Meter: ${consumer.waterMeterNo}'),
-                            Text('Address: ${consumer.fullAddress}'),
-                            Text(
-                              'Current Reading: ${consumer.currentReading.toStringAsFixed(0)}',
+                            const Icon(
+                              Icons.person_off,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No consumers available',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A3A5C),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                'You have completed all meter readings for this month.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              icon: const Icon(Icons.arrow_back),
+                              label: const Text('Go Back'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4A90E2),
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ],
                         ),
-                        onTap: () {
-                          setState(() {
-                            _selectedConsumer = consumer;
-                            _previousReadingController.text = consumer
-                                .currentReading
-                                .toStringAsFixed(0);
-                          });
-                          Navigator.of(context).pop();
+                      )
+                    : ListView.builder(
+                        itemCount: _consumers.length,
+                        itemBuilder: (context, index) {
+                          final consumer = _consumers[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(
+                                consumer.fullName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A3A5C),
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Meter: ${consumer.waterMeterNo}'),
+                                  Text('Address: ${consumer.fullAddress}'),
+                                  Text(
+                                    'Current Reading: ${consumer.currentReading.toStringAsFixed(0)}',
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _selectedConsumer = consumer;
+                                  _previousReadingController.text = consumer
+                                      .currentReading
+                                      .toStringAsFixed(0);
+                                });
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          );
                         },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
