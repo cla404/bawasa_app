@@ -417,8 +417,74 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       // Now create a billing record
       print('💰 [MeterReadingRepository] Creating billing record...');
 
-      // Calculate billing using BAWASA calculator
-      final billingCalc = BAWASABillingCalculator.calculateBilling(consumption);
+      // Get consumer's account creation date to calculate years of service
+      int yearsOfService = 0;
+      try {
+        if (submission.consumerId != null) {
+          // Get the consumer record to find the account ID
+          final consumerResponse = await _supabase
+              .from('consumers')
+              .select('consumer_id, created_at')
+              .eq('id', submission.consumerId!)
+              .single();
+
+          DateTime? accountCreationDate;
+
+          // Get account creation date from accounts table using consumer_id foreign key
+          if (consumerResponse['consumer_id'] != null) {
+            final accountId = consumerResponse['consumer_id'] as int;
+            final accountResponse = await _supabase
+                .from('accounts')
+                .select('created_at')
+                .eq('id', accountId)
+                .maybeSingle();
+
+            if (accountResponse != null &&
+                accountResponse['created_at'] != null) {
+              accountCreationDate = DateTime.parse(
+                accountResponse['created_at'],
+              );
+            }
+          }
+
+          // If account creation date not found, use consumer creation date as fallback
+          if (accountCreationDate == null &&
+              consumerResponse['created_at'] != null) {
+            accountCreationDate = DateTime.parse(
+              consumerResponse['created_at'],
+            );
+          }
+
+          // Calculate years of service
+          if (accountCreationDate != null) {
+            yearsOfService = BAWASABillingCalculator.calculateYearsOfService(
+              accountCreationDate,
+            );
+            print(
+              '📅 [MeterReadingRepository] Account created: $accountCreationDate',
+            );
+            print(
+              '📅 [MeterReadingRepository] Years of service: $yearsOfService',
+            );
+            print(
+              '📅 [MeterReadingRepository] Discount percentage: ${BAWASABillingCalculator.getDiscountPercentage(yearsOfService) * 100}%',
+            );
+          }
+        }
+      } catch (e) {
+        print(
+          '⚠️ [MeterReadingRepository] Warning: Could not calculate years of service: $e',
+        );
+        print('⚠️ [MeterReadingRepository] Stack trace: ${StackTrace.current}');
+        // Continue with 0 years (no discount) if calculation fails
+        yearsOfService = 0;
+      }
+
+      // Calculate billing using BAWASA calculator with years of service
+      final billingCalc = BAWASABillingCalculator.calculateBilling(
+        consumption,
+        yearsOfService: yearsOfService,
+      );
 
       // Calculate due date (30 days from now)
       final dueDate = DateTime.now().add(const Duration(days: 30));
