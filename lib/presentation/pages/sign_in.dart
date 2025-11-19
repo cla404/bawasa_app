@@ -287,58 +287,7 @@ class _SignInState extends State<SignIn> {
                           return null;
                         },
                       ),
-
-                      const SizedBox(height: 16),
-
-                      // Remember Me & Forgot Password
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _rememberMe,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _rememberMe = value ?? false;
-                                  });
-                                },
-                                activeColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
-                              ),
-                              Text(
-                                'Remember me',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: isTablet ? 16 : 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              // TODO: Implement forgot password
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Forgot password feature coming soon!',
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: isTablet ? 16 : 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
+                      SizedBox(height: 16),
                       SizedBox(height: isTablet ? 32 : 24),
 
                       // Sign In Button

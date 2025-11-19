@@ -213,8 +213,10 @@ class CustomAuthRepositoryImpl implements AuthRepository {
       final supabase = SupabaseConfig.client;
       final now = DateTime.now().toIso8601String();
 
-      // Check if this is a meter reader (UUID format) or consumer (integer format)
-      final isMeterReader = userId.contains('-'); // UUIDs contain hyphens
+      // Use the current user's type to determine which table to update
+      // This is more reliable than checking ID format
+      final currentUser = _currentUser;
+      final isMeterReader = currentUser?.userType == 'meter_reader';
 
       if (isMeterReader) {
         // Update meter_reader_accounts table

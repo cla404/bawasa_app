@@ -7,7 +7,9 @@ import '../../bloc/auth/auth_state.dart';
 import '../../../domain/entities/billing.dart';
 
 class BillingPage extends StatefulWidget {
-  const BillingPage({super.key});
+  final VoidCallback? onBackToHome;
+
+  const BillingPage({super.key, this.onBackToHome});
 
   @override
   State<BillingPage> createState() => _BillingPageState();
@@ -55,6 +57,16 @@ class _BillingPageState extends State<BillingPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+          onPressed: () {
+            if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         title: const Text(
           'Billing',
           style: TextStyle(
@@ -327,36 +339,6 @@ class _BillingPageState extends State<BillingPage> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement payment
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Payment feature coming soon!'),
-                      backgroundColor: Colors.blue,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A90E2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Pay Now',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
             ),
           ],
         ),

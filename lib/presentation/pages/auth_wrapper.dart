@@ -43,13 +43,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
             if (mounted) {
               print('AuthWrapper: Forcing navigation to main page');
 
-              // Determine if this is a meter reader or consumer based on user ID format
-              final isMeterReader = state.user.id.contains(
-                '-',
-              ); // UUIDs contain hyphens
+              // Route based on user type - check user_type from CustomUser
+              // Get the CustomUser to access userType field
+              final customUser = context
+                  .read<AuthBloc>()
+                  .getCurrentCustomUser();
+              final isMeterReader =
+                  customUser?.userType == 'meter_reader';
 
               if (isMeterReader) {
-                print('AuthWrapper: Routing to MeterReaderAccountMain');
+                print('AuthWrapper: Routing meter reader to MeterReaderAccountMain');
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -58,7 +61,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   ),
                 );
               } else {
-                print('AuthWrapper: Routing to ConsumerAccountMain');
+                print('AuthWrapper: Routing consumer to ConsumerAccountMain');
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(

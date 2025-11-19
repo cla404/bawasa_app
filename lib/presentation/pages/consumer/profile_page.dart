@@ -4,9 +4,12 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../domain/entities/user.dart';
+import '../../../core/config/supabase_config.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final VoidCallback? onBackToHome;
+  
+  const ProfilePage({super.key, this.onBackToHome});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -18,6 +21,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   bool _isEditing = false;
+  bool _isLoading = false;
+  String? _lastFetchedUserId;
 
   @override
   void dispose() {
@@ -32,6 +37,64 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _isEditing = !_isEditing;
     });
+
+    // If canceling edit, refresh data from server
+    if (!_isEditing) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        _lastFetchedUserId = null; // Reset to allow refresh
+        _fetchAccountData(authState.user.id);
+      }
+    }
+  }
+
+  Future<void> _fetchAccountData(
+    String userId, {
+    bool forceRefresh = false,
+  }) async {
+    // Avoid fetching if already loading or if we've already fetched for this user (unless forcing refresh)
+    if (_isLoading || (!forceRefresh && _lastFetchedUserId == userId)) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final accountResponse = await SupabaseConfig.client
+          .from('accounts')
+          .select('full_name, full_address, mobile_no, email')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (accountResponse != null && mounted) {
+        setState(() {
+          if (!_isEditing) {
+            _nameController.text = accountResponse['full_name'] ?? '';
+            _emailController.text = accountResponse['email'] ?? '';
+            _phoneController.text =
+                accountResponse['mobile_no']?.toString() ?? '';
+            _addressController.text = accountResponse['full_address'] ?? '';
+          }
+          _lastFetchedUserId = userId;
+        });
+      }
+    } catch (e) {
+      print('❌ [ProfilePage] Error fetching account data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load profile data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _saveProfile() {
@@ -56,6 +119,16 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+          onPressed: () {
+            if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         title: const Text(
           'Profile',
           style: TextStyle(
@@ -85,13 +158,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   User? user;
                   if (state is AuthAuthenticated) {
                     user = state.user;
-                    if (!_isEditing) {
-                      _nameController.text = user.fullName ?? '';
-                      _emailController.text = user.email;
-                      _phoneController.text = user.phone ?? '';
-                      _addressController.text =
-                          '123 Main Street, City, State'; // TODO: Add address to user entity
-                    }
+                    // Fetch account data when user is authenticated
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (user != null) {
+                        _fetchAccountData(user.id);
+                      }
+                    });
                   }
                   return _buildProfileHeader(user);
                 },
@@ -368,21 +440,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 20),
-
-          _buildSettingItem(
-            icon: Icons.help_outline,
-            title: 'Help & Support',
-            subtitle: 'Get help and contact support',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Help & Support coming soon!'),
-                  backgroundColor: Colors.blue,
-                ),
-              );
-            },
-          ),
-          const Divider(height: 24),
 
           _buildSettingItem(
             icon: Icons.info,

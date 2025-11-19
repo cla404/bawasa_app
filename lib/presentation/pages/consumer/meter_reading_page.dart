@@ -9,7 +9,9 @@ import '../../../services/camera_service.dart';
 import 'dart:io';
 
 class MeterReadingPage extends StatefulWidget {
-  const MeterReadingPage({super.key});
+  final VoidCallback? onBackToHome;
+  
+  const MeterReadingPage({super.key, this.onBackToHome});
 
   @override
   State<MeterReadingPage> createState() => _MeterReadingPageState();
@@ -280,6 +282,16 @@ class _MeterReadingPageState extends State<MeterReadingPage> {
               return Scaffold(
                 backgroundColor: const Color(0xFFF5F7FA),
                 appBar: AppBar(
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+                    onPressed: () {
+                      if (widget.onBackToHome != null) {
+                        widget.onBackToHome!();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
                   title: const Text(
                     'Meter Reading History',
                     style: TextStyle(

@@ -148,11 +148,29 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
       case 0:
         return _buildHomePage();
       case 1:
-        return const MeterReaderSubmissionPage();
+        return MeterReaderSubmissionPage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       case 2:
-        return const MeterReaderHistoryPage();
+        return MeterReaderHistoryPage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       case 3:
-        return const ProfilePage();
+        return ProfilePage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       default:
         return _buildHomePage();
     }
@@ -206,26 +224,6 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
             fontSize: isTablet ? 28 : 24,
             fontWeight: FontWeight.bold,
             color: const Color(0xFF1A3A5C),
-          ),
-        ),
-        Container(
-          padding: EdgeInsets.all(isTablet ? 12 : 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.notifications_outlined,
-            color: const Color(0xFF1A3A5C),
-            size: isTablet ? 28 : 24,
           ),
         ),
       ],

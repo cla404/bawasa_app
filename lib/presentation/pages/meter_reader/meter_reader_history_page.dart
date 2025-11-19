@@ -3,7 +3,9 @@ import 'package:get_it/get_it.dart';
 import '../../../domain/repositories/meter_reading_repository.dart';
 
 class MeterReaderHistoryPage extends StatefulWidget {
-  const MeterReaderHistoryPage({super.key});
+  final VoidCallback? onBackToHome;
+  
+  const MeterReaderHistoryPage({super.key, this.onBackToHome});
 
   @override
   State<MeterReaderHistoryPage> createState() => _MeterReaderHistoryPageState();
@@ -279,6 +281,16 @@ class _MeterReaderHistoryPageState extends State<MeterReaderHistoryPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+          onPressed: () {
+            if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         title: const Text(
           'Reading History',
           style: TextStyle(

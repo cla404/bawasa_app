@@ -10,7 +10,9 @@ import '../../../domain/repositories/consumer_repository.dart';
 import '../../../domain/repositories/auth_repository.dart';
 
 class IssuesPage extends StatefulWidget {
-  const IssuesPage({super.key});
+  final VoidCallback? onBackToHome;
+
+  const IssuesPage({super.key, this.onBackToHome});
 
   @override
   State<IssuesPage> createState() => _IssuesPageState();
@@ -88,12 +90,24 @@ class _IssuesPageState extends State<IssuesPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      String errorMessage = 'Error picking image';
+      if (e.toString().contains('permission') ||
+          e.toString().contains('denied')) {
+        errorMessage =
+            'Photo library permission denied. Please enable photo library access in Settings.';
+      } else {
+        errorMessage = 'Error picking image: ${e.toString()}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -116,12 +130,26 @@ class _IssuesPageState extends State<IssuesPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error taking photo: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      String errorMessage = 'Error taking photo';
+      if (e.toString().contains('permission') ||
+          e.toString().contains('denied')) {
+        errorMessage =
+            'Camera permission denied. Please enable camera access in Settings.';
+      } else if (e.toString().contains('not available')) {
+        errorMessage = 'Camera is not available on this device.';
+      } else {
+        errorMessage = 'Error taking photo: ${e.toString()}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -331,6 +359,16 @@ class _IssuesPageState extends State<IssuesPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+          onPressed: () {
+            if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         title: const Text(
           'Report Issues',
           style: TextStyle(

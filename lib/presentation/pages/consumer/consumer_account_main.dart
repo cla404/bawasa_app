@@ -116,13 +116,37 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
       case 0:
         return _buildHomePage();
       case 1:
-        return const MeterReadingPage();
+        return MeterReadingPage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       case 2:
-        return const BillingPage();
+        return BillingPage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       case 3:
-        return const IssuesPage();
+        return IssuesPage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       case 4:
-        return const ProfilePage();
+        return ProfilePage(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
       default:
         return _buildHomePage();
     }
@@ -184,26 +208,6 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
             fontSize: isTablet ? 28 : 24,
             fontWeight: FontWeight.bold,
             color: const Color(0xFF1A3A5C),
-          ),
-        ),
-        Container(
-          padding: EdgeInsets.all(isTablet ? 12 : 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.notifications_outlined,
-            color: const Color(0xFF1A3A5C),
-            size: isTablet ? 28 : 24,
           ),
         ),
       ],
@@ -395,7 +399,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           crossAxisCount: crossAxisCount,
           crossAxisSpacing: isTablet ? 16 : 12,
           mainAxisSpacing: isTablet ? 16 : 12,
-          childAspectRatio: isTablet ? 1.3 : 1.2,
+          childAspectRatio: isTablet ? 1.1 : 0.95,
           padding: EdgeInsets.all(padding),
           children: [
             _buildQuickActionCard(
@@ -451,7 +455,7 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(isTablet ? 20 : 16),
+        padding: EdgeInsets.all(isTablet ? 16 : 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -466,34 +470,39 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: isTablet ? 60 : 50,
-              height: isTablet ? 60 : 50,
+              width: isTablet ? 56 : 48,
+              height: isTablet ? 56 : 48,
               decoration: BoxDecoration(
                 color: iconColor,
-                borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
+                borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
               ),
-              child: Icon(icon, color: Colors.white, size: isTablet ? 28 : 24),
+              child: Icon(icon, color: Colors.white, size: isTablet ? 26 : 22),
             ),
-            SizedBox(height: isTablet ? 16 : 12),
+            SizedBox(height: isTablet ? 10 : 8),
             Text(
               title,
               style: TextStyle(
-                fontSize: isTablet ? 16 : 14,
+                fontSize: isTablet ? 15 : 13,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF1A3A5C),
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: isTablet ? 6 : 4),
+            SizedBox(height: isTablet ? 4 : 2),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: isTablet ? 14 : 12,
+                fontSize: isTablet ? 13 : 11,
                 color: const Color(0xFF6B7280),
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

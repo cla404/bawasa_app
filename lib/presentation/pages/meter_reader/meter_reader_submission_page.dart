@@ -9,7 +9,9 @@ import 'package:get_it/get_it.dart';
 import 'dart:io';
 
 class MeterReaderSubmissionPage extends StatefulWidget {
-  const MeterReaderSubmissionPage({super.key});
+  final VoidCallback? onBackToHome;
+  
+  const MeterReaderSubmissionPage({super.key, this.onBackToHome});
 
   @override
   State<MeterReaderSubmissionPage> createState() =>
@@ -397,6 +399,16 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF1A3A5C)),
+              onPressed: () {
+                if (widget.onBackToHome != null) {
+                  widget.onBackToHome!();
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
             title: const Text(
               'Submit Meter Reading',
               style: TextStyle(
