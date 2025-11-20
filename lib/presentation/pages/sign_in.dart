@@ -6,6 +6,7 @@ import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import 'consumer/consumer_account_main.dart';
 import 'meter_reader/meter_reader_account_main.dart';
+import 'forgot_password_page.dart';
 
 class SignIn extends StatefulWidget {
   const SignIn({super.key});
@@ -287,7 +288,31 @@ class _SignInState extends State<SignIn> {
                           return null;
                         },
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: isTablet ? 16 : 12),
+
+                      // Forgot Password Link
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ForgotPasswordPage(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              fontSize: isTablet ? 16 : 14,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
                       SizedBox(height: isTablet ? 32 : 24),
 
                       // Sign In Button

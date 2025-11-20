@@ -33,11 +33,12 @@ class SignOutRequested extends AuthEvent {}
 
 class ResetPasswordRequested extends AuthEvent {
   final String email;
+  final String newPassword;
 
-  const ResetPasswordRequested(this.email);
+  const ResetPasswordRequested(this.email, this.newPassword);
 
   @override
-  List<Object> get props => [email];
+  List<Object> get props => [email, newPassword];
 }
 
 class ResendConfirmationEmailRequested extends AuthEvent {

@@ -6,6 +6,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../services/custom_auth_service.dart';
 import '../../core/config/supabase_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class CustomAuthRepositoryImpl implements AuthRepository {
@@ -93,13 +94,48 @@ class CustomAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> resetPassword(String email) async {
-    // For now, we'll return an error since password reset should be done through the web admin
-    return AuthResult.failure(
-      message:
-          'Password reset is not available in the mobile app. Please contact your administrator.',
-      errorCode: 'RESET_PASSWORD_NOT_AVAILABLE',
-    );
+  Future<AuthResult> resetPassword(String email, String newPassword) async {
+    try {
+      print('🔐 [CustomAuthRepository] Resetting password for: $email');
+
+      // Use the same base URL as CustomAuthService
+      final baseUrl = CustomAuthService.baseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'newPassword': newPassword}),
+      );
+
+      print(
+        '🔐 [CustomAuthRepository] Password reset API response status: ${response.statusCode}',
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print('✅ [CustomAuthRepository] Password reset successful');
+        return AuthResult.success(
+          message:
+              responseData['message'] ??
+              'Password has been reset successfully.',
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        print(
+          '❌ [CustomAuthRepository] Password reset failed: ${errorData['error']}',
+        );
+        return AuthResult.failure(
+          message: errorData['error'] ?? 'Failed to reset password',
+          errorCode: 'RESET_PASSWORD_ERROR',
+        );
+      }
+    } catch (e) {
+      print('❌ [CustomAuthRepository] Error resetting password: $e');
+      return AuthResult.failure(
+        message:
+            'An error occurred while resetting your password. Please try again.',
+        errorCode: 'RESET_PASSWORD_ERROR',
+      );
+    }
   }
 
   @override

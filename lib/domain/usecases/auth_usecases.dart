@@ -57,15 +57,14 @@ class SignOutUseCase implements UseCaseNoParams<AuthResult> {
   }
 }
 
-class ResetPasswordUseCase implements UseCase<AuthResult, String> {
+class ResetPasswordUseCase {
   final AuthRepository repository;
 
   ResetPasswordUseCase(this.repository);
 
-  @override
-  Future<AuthResult> call(String email) async {
+  Future<AuthResult> call(String email, String newPassword) async {
     try {
-      return await repository.resetPassword(email);
+      return await repository.resetPassword(email, newPassword);
     } catch (e) {
       return AuthResult.failure(
         message: e.toString(),

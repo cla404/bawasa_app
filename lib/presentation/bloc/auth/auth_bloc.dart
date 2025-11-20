@@ -271,14 +271,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
 
-    final result = await _resetPasswordUseCase(event.email);
+    final result = await _resetPasswordUseCase(event.email, event.newPassword);
 
     if (result.isSuccess) {
-      emit(AuthSuccess(result.message ?? 'Password reset email sent'));
+      emit(AuthSuccess(result.message ?? 'Password has been reset successfully'));
     } else {
       emit(
         AuthError(
-          message: result.message ?? 'Failed to send password reset email',
+          message: result.message ?? 'Failed to reset password',
           errorCode: result.errorCode,
         ),
       );

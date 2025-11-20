@@ -6,6 +6,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../services/supabase_accounts_auth_service.dart';
 import '../../core/config/supabase_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 
 class SupabaseAccountsAuthRepositoryImpl implements AuthRepository {
@@ -94,13 +95,76 @@ class SupabaseAccountsAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> resetPassword(String email) async {
-    // This would need to be implemented based on your password reset requirements
-    return AuthResult.failure(
-      message:
-          'Password reset not implemented for accounts table authentication',
-      errorCode: 'NOT_IMPLEMENTED',
-    );
+  Future<AuthResult> resetPassword(String email, String newPassword) async {
+    try {
+      print('🔐 [SupabaseAccountsAuthRepository] Resetting password for: $email');
+
+      // Validate password length
+      if (newPassword.length < 6) {
+        return AuthResult.failure(
+          message: 'Password must be at least 6 characters long',
+          errorCode: 'VALIDATION_ERROR',
+        );
+      }
+
+      // Use Supabase RPC to call the reset_password function
+      final supabase = SupabaseConfig.client;
+      
+      try {
+        // Call the database function via RPC
+        await supabase.rpc(
+          'reset_password',
+          params: {
+            'user_email': email,
+            'new_password': newPassword,
+          },
+        );
+
+        print('✅ [SupabaseAccountsAuthRepository] Password reset successful');
+        return AuthResult.success(
+          message: 'Password has been reset successfully.',
+        );
+      } catch (e) {
+        // Check if it's a PostgrestException
+        if (e is PostgrestException) {
+          // Handle database function errors
+          print('❌ [SupabaseAccountsAuthRepository] Database error: ${e.message}');
+          
+          // If function doesn't exist, provide helpful error
+          if (e.message.contains('function') && e.message.contains('does not exist')) {
+            return AuthResult.failure(
+              message: 'Password reset function not configured. Please contact support.',
+              errorCode: 'FUNCTION_NOT_FOUND',
+            );
+          }
+          
+          // For security, return success even if account doesn't exist
+          if (e.message.contains('not found') || e.message.contains('does not exist')) {
+            return AuthResult.success(
+              message: 'Password has been reset successfully.',
+            );
+          }
+          
+          return AuthResult.failure(
+            message: e.message,
+            errorCode: 'RESET_PASSWORD_ERROR',
+          );
+        }
+        
+        // Handle other errors
+        print('❌ [SupabaseAccountsAuthRepository] Error resetting password: $e');
+        return AuthResult.failure(
+          message: 'An error occurred while resetting your password. Please try again.',
+          errorCode: 'RESET_PASSWORD_ERROR',
+        );
+      }
+    } catch (e) {
+      print('❌ [SupabaseAccountsAuthRepository] Unexpected error: $e');
+      return AuthResult.failure(
+        message: 'An unexpected error occurred. Please try again.',
+        errorCode: 'RESET_PASSWORD_ERROR',
+      );
+    }
   }
 
   @override

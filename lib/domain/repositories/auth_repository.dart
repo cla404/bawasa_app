@@ -7,7 +7,7 @@ abstract class AuthRepository {
   Future<AuthResult> signIn(AuthCredentials credentials);
   Future<AuthResult> signUp(SignUpCredentials credentials);
   Future<AuthResult> signOut();
-  Future<AuthResult> resetPassword(String email);
+  Future<AuthResult> resetPassword(String email, String newPassword);
   Future<AuthResult> resendConfirmationEmail(String email);
   Future<AuthResult> updateProfile(UpdateProfileParams params);
   User? getCurrentUser();

@@ -5,6 +5,9 @@ import '../../domain/entities/auth_result.dart';
 import '../../domain/entities/custom_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../services/custom_auth_service.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseAuthDataSource _remoteDataSource;
@@ -70,12 +73,34 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> resetPassword(String email) async {
+  Future<AuthResult> resetPassword(String email, String newPassword) async {
+    // This repository uses Supabase auth, but we'll use the custom API for password reset
+    // since the accounts table uses custom authentication
     try {
-      await _remoteDataSource.resetPassword(email);
-      return AuthResult.success(
-        message: 'Password reset email sent successfully',
+      // Use HTTP to call the reset password API directly
+      final baseUrl = CustomAuthService.baseUrl;
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'newPassword': newPassword,
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return AuthResult.success(
+          message: responseData['message'] ?? 'Password has been reset successfully.',
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        return AuthResult.failure(
+          message: errorData['error'] ?? 'Failed to reset password',
+          errorCode: 'RESET_PASSWORD_ERROR',
+        );
+      }
     } catch (e) {
       return AuthResult.failure(
         message: _getErrorMessage(e),
