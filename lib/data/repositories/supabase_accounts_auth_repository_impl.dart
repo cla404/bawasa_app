@@ -295,4 +295,86 @@ class SupabaseAccountsAuthRepositoryImpl implements AuthRepository {
       return null;
     }
   }
+
+  /// Refresh user status from server (for meter readers and consumers)
+  Future<bool> refreshUserStatus() async {
+    try {
+      if (_currentUser == null) {
+        print('⚠️ [SupabaseAccountsAuthRepository] No current user to refresh');
+        return false;
+      }
+
+      print('🔄 [SupabaseAccountsAuthRepository] Refreshing user status...');
+
+      final supabase = SupabaseConfig.client;
+      
+      // Get account data
+      final accountId = int.parse(_currentUser!.id);
+      final accountResponse = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('id', accountId)
+          .maybeSingle();
+
+      if (accountResponse == null) {
+        print('❌ [SupabaseAccountsAuthRepository] Account not found');
+        return false;
+      }
+
+      String newStatus = '';
+      
+      if (_currentUser!.userType == 'meter_reader') {
+        // Get meter reader status
+        final meterReaderResponse = await supabase
+            .from('bawasa_meter_reader')
+            .select('*')
+            .eq('reader_id', accountId)
+            .maybeSingle();
+
+        if (meterReaderResponse == null) {
+          print('⚠️ [SupabaseAccountsAuthRepository] Meter reader record not found');
+          return false;
+        }
+
+        newStatus = meterReaderResponse['status']?.toString() ?? '';
+      } else if (_currentUser!.userType == 'consumer') {
+        // Get consumer status from accounts table
+        newStatus = accountResponse['status']?.toString() ?? 'active';
+      } else {
+        print('⚠️ [SupabaseAccountsAuthRepository] Unknown user type: ${_currentUser!.userType}');
+        return false;
+      }
+
+      final oldStatus = _currentUser!.status ?? '';
+
+      // Update the current user with new status
+      _currentUser = CustomUser(
+        id: _currentUser!.id,
+        email: _currentUser!.email,
+        fullName: _currentUser!.fullName,
+        phone: _currentUser!.phone,
+        fullAddress: _currentUser!.fullAddress,
+        consumerId: _currentUser!.consumerId,
+        waterMeterNo: _currentUser!.waterMeterNo,
+        createdAt: _currentUser!.createdAt,
+        updatedAt: _currentUser!.updatedAt,
+        userType: _currentUser!.userType,
+        status: newStatus,
+      );
+
+      // Save updated user to storage
+      await _saveUserToStorage(_currentUser!);
+
+      if (newStatus != oldStatus) {
+        print('✅ [SupabaseAccountsAuthRepository] User status updated: $oldStatus -> $newStatus');
+        return true; // Status changed
+      } else {
+        print('✅ [SupabaseAccountsAuthRepository] User status refreshed (no change)');
+        return false; // Status unchanged
+      }
+    } catch (e) {
+      print('❌ [SupabaseAccountsAuthRepository] Error refreshing user status: $e');
+      return false;
+    }
+  }
 }

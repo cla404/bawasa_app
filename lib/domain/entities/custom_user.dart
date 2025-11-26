@@ -12,6 +12,7 @@ class CustomUser extends Equatable {
   final String updatedAt;
   final String
   userType; // Added to distinguish between consumer and meter_reader
+  final String? status; // Status for meter readers (active, suspended, etc.)
 
   const CustomUser({
     required this.id,
@@ -24,6 +25,7 @@ class CustomUser extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     required this.userType,
+    this.status,
   });
 
   factory CustomUser.fromMap(Map<String, dynamic> map) {
@@ -50,6 +52,7 @@ class CustomUser extends Equatable {
       userType:
           map['user_type']?.toString() ??
           'consumer', // Default to consumer for backward compatibility
+      status: map['status']?.toString(),
     );
   }
 
@@ -65,11 +68,12 @@ class CustomUser extends Equatable {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'user_type': userType,
+      'status': status,
     };
   }
 
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
     id,
     email,
     fullName,
@@ -80,5 +84,6 @@ class CustomUser extends Equatable {
     createdAt,
     updatedAt,
     userType,
+    status,
   ];
 }

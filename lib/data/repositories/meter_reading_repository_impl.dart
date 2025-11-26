@@ -363,6 +363,16 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       final supabaseAccountsAuthRepo =
           GetIt.instance<SupabaseAccountsAuthRepositoryImpl>();
       final currentUser = supabaseAccountsAuthRepo.getCurrentUser();
+      final customUser = supabaseAccountsAuthRepo.getCurrentCustomUser();
+      
+      // Check if meter reader is suspended
+      if (customUser != null && 
+          customUser.userType == 'meter_reader' && 
+          customUser.status?.toLowerCase() == 'suspended') {
+        throw ServerFailure(
+          'Your account has been suspended. You cannot submit new meter readings. Please contact the administrator for assistance.'
+        );
+      }
 
       String? meterImageUrl;
 

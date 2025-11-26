@@ -5,6 +5,7 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/entities/user.dart' as domain;
 import '../../../domain/entities/custom_user.dart';
 import '../../../core/injection/injection_container.dart';
+import '../../../data/repositories/supabase_accounts_auth_repository_impl.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 import 'dart:async';
@@ -49,6 +50,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthErrorDismissed>(_onAuthErrorDismissed);
     on<AuthSuccessDismissed>(_onAuthSuccessDismissed);
     on<AuthStateChanged>(_onAuthStateChanged);
+    on<RefreshUserStatusRequested>(_onRefreshUserStatusRequested);
 
     // Initialize auth state listener
     _initAuthStateListener();
@@ -420,6 +422,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } else {
       emit(AuthUnauthenticated());
+    }
+  }
+
+  Future<void> _onRefreshUserStatusRequested(
+    RefreshUserStatusRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      print('🔄 [AuthBloc] Refreshing user status...');
+      
+      // Check if repository has refreshUserStatus method
+      final repo = _authRepository;
+      if (repo is SupabaseAccountsAuthRepositoryImpl) {
+        final statusChanged = await repo.refreshUserStatus();
+        
+        if (statusChanged) {
+          print('✅ [AuthBloc] User status changed, re-emitting authenticated state');
+          // Get updated user and re-emit authenticated state
+          final user = _authRepository.getCurrentUser();
+          if (user != null) {
+            emit(AuthAuthenticated(user));
+          }
+        } else {
+          print('✅ [AuthBloc] User status refreshed (no change)');
+        }
+      } else {
+        print('⚠️ [AuthBloc] Repository does not support status refresh');
+      }
+    } catch (e) {
+      print('❌ [AuthBloc] Error refreshing user status: $e');
+      // Don't emit error state, just log it
     }
   }
 
