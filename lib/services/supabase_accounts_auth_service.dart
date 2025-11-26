@@ -63,6 +63,7 @@ class SupabaseAccountsAuthService {
         print('✅ [SupabaseAccountsAuth] Consumer data retrieved');
 
         // Create a custom user object for consumer
+        final consumerStatus = accountResponse['status']?.toString() ?? 'active';
         userData = {
           'id': accountResponse['id']?.toString() ?? '',
           'email': accountResponse['email'] ?? '',
@@ -71,6 +72,7 @@ class SupabaseAccountsAuthService {
           'full_address': accountResponse['full_address'] ?? '',
           'consumer_id': consumerResponse['id']?.toString() ?? '',
           'water_meter_no': consumerResponse['water_meter_no'] ?? '',
+          'status': consumerStatus,
           'created_at': accountResponse['created_at']?.toString() ?? '',
           'updated_at': accountResponse['updated_at']?.toString() ?? '',
           'user_type': userType,
@@ -91,6 +93,7 @@ class SupabaseAccountsAuthService {
         print('✅ [SupabaseAccountsAuth] Meter reader data retrieved');
 
         // Create a custom user object for meter reader
+        final meterReaderStatus = meterReaderResponse['status']?.toString() ?? '';
         userData = {
           'id': accountResponse['id']?.toString() ?? '',
           'email': accountResponse['email'] ?? '',
@@ -100,7 +103,7 @@ class SupabaseAccountsAuthService {
           'consumer_id': null, // Meter readers don't have consumer_id
           'water_meter_no': null, // Meter readers don't have water_meter_no
           'meter_reader_id': meterReaderResponse['id']?.toString() ?? '',
-          'status': meterReaderResponse['status'] ?? '',
+          'status': meterReaderStatus,
           'assigned_to': meterReaderResponse['assigned_to']?.toString() ?? '',
           'created_at': accountResponse['created_at']?.toString() ?? '',
           'updated_at': accountResponse['updated_at']?.toString() ?? '',

@@ -64,27 +64,41 @@ class _ConsumptionChartState extends State<ConsumptionChart> {
   Widget _buildChart() {
     final chartData = _getChartData();
 
-    if (chartData.isEmpty || chartData.length < 2) {
+    // Check if there are any meter readings at all
+    final hasReadings = widget.meterReadings.isNotEmpty;
+    
+    // Check if all consumption values are zero (new user with no actual data)
+    final hasNonZeroData = chartData.any((value) => value > 0);
+    
+    // Check if we have at least 2 data points with actual readings
+    final hasEnoughData = chartData.length >= 2 && hasNonZeroData;
+
+    if (!hasReadings || !hasEnoughData) {
       return Container(
         height: 200,
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.bar_chart, color: Colors.grey, size: 48),
               SizedBox(height: 8),
               Text(
-                'Insufficient data for chart',
+                hasReadings 
+                    ? 'Insufficient data for chart'
+                    : 'No consumption data available',
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
               SizedBox(height: 4),
               Text(
-                'Need at least 2 meter readings',
+                hasReadings
+                    ? 'Need at least 2 meter readings with consumption'
+                    : 'Meter readings will appear here once recorded',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

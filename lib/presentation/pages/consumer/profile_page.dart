@@ -20,9 +20,21 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  bool _isEditing = false;
   bool _isLoading = false;
+  bool _isEditing = false;
+  bool _isSaving = false;
   String? _lastFetchedUserId;
+  String? _originalName;
+  String? _originalPhone;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh user status when page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthBloc>().add(RefreshUserStatusRequested());
+    });
+  }
 
   @override
   void dispose() {
@@ -33,20 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  void _toggleEdit() {
-    setState(() {
-      _isEditing = !_isEditing;
-    });
-
-    // If canceling edit, refresh data from server
-    if (!_isEditing) {
-      final authState = context.read<AuthBloc>().state;
-      if (authState is AuthAuthenticated) {
-        _lastFetchedUserId = null; // Reset to allow refresh
-        _fetchAccountData(authState.user.id);
-      }
-    }
-  }
 
   Future<void> _fetchAccountData(
     String userId, {
@@ -68,14 +66,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (accountResponse != null && mounted) {
         setState(() {
-          if (!_isEditing) {
             _nameController.text = accountResponse['full_name'] ?? '';
             _emailController.text = accountResponse['email'] ?? '';
             _phoneController.text =
                 accountResponse['mobile_no']?.toString() ?? '';
             _addressController.text = accountResponse['full_address'] ?? '';
-          }
           _lastFetchedUserId = userId;
+          // Store original values for cancel functionality
+          _originalName = accountResponse['full_name'] ?? '';
+          _originalPhone = accountResponse['mobile_no']?.toString() ?? '';
         });
       }
     } catch (e) {
@@ -97,21 +96,148 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _saveProfile() {
-    // TODO: Implement profile update
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile updated successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    setState(() {
-      _isEditing = false;
-    });
-  }
 
   void _signOut() {
     context.read<AuthBloc>().add(SignOutRequested());
+  }
+
+  bool _isSuspended() {
+    final authBloc = context.read<AuthBloc>();
+    final customUser = authBloc.getCurrentCustomUser();
+    return customUser != null && 
+        (customUser.userType == 'meter_reader' || customUser.userType == 'consumer') && 
+        customUser.status?.toLowerCase() == 'suspended';
+  }
+
+  void _handleEdit() {
+    if (_isSuspended()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Your account has been suspended. You cannot edit your profile.'),
+          backgroundColor: Colors.red,
+      ),
+    );
+      return;
+    }
+    setState(() {
+      _isEditing = true;
+    });
+  }
+
+  void _handleCancel() {
+    setState(() {
+      _isEditing = false;
+      // Restore original values
+      if (_originalName != null) {
+        _nameController.text = _originalName!;
+      }
+      if (_originalPhone != null) {
+        _phoneController.text = _originalPhone!;
+  }
+    });
+  }
+
+  Future<void> _handleSave() async {
+    // Check if consumer is suspended
+    if (_isSuspended()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been suspended. You cannot edit your profile.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final authBloc = context.read<AuthBloc>();
+    final authState = authBloc.state;
+    String? userId;
+
+    if (authState is AuthAuthenticated) {
+      userId = authState.user.id;
+    } else {
+      final customUser = authBloc.getCurrentCustomUser();
+      userId = customUser?.id;
+    }
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to identify user. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      // Update only full_name and mobile_no
+      final updates = <String, dynamic>{
+        'full_name': _nameController.text.trim().isEmpty 
+            ? null 
+            : _nameController.text.trim(),
+      };
+
+      // Parse mobile_no as integer if not empty
+      if (_phoneController.text.trim().isNotEmpty) {
+        final phoneInt = int.tryParse(_phoneController.text.trim());
+        if (phoneInt != null) {
+          updates['mobile_no'] = phoneInt;
+        } else {
+          throw Exception('Invalid phone number format');
+        }
+      } else {
+        updates['mobile_no'] = null;
+      }
+
+      final response = await SupabaseConfig.client
+          .from('accounts')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single();
+
+      if (mounted) {
+        // Update original values
+        setState(() {
+          _originalName = response['full_name'] ?? '';
+          _originalPhone = response['mobile_no']?.toString() ?? '';
+          _isEditing = false;
+        });
+
+        // Refresh user data
+        await _fetchAccountData(userId, forceRefresh: true);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ [ProfilePage] Error saving profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   @override
@@ -140,10 +266,57 @@ class _ProfilePageState extends State<ProfilePage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A3A5C)),
         actions: [
-          IconButton(
-            onPressed: _toggleEdit,
-            icon: Icon(_isEditing ? Icons.close : Icons.edit),
-            tooltip: _isEditing ? 'Cancel' : 'Edit Profile',
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              final isSuspended = _isSuspended();
+              
+              if (_isEditing) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isSaving)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else ...[
+                      TextButton(
+                        onPressed: _handleCancel,
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Color(0xFF1A3A5C)),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _handleSave,
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(
+                            color: Color(0xFF4A90E2),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              }
+
+              return IconButton(
+                icon: Icon(
+                  Icons.edit,
+                  color: isSuspended ? Colors.grey : const Color(0xFF1A3A5C),
+                ),
+                onPressed: isSuspended ? null : _handleEdit,
+                tooltip: isSuspended 
+                    ? 'Cannot edit: Account suspended' 
+                    : 'Edit Profile',
+              );
+            },
           ),
         ],
       ),
@@ -169,6 +342,48 @@ class _ProfilePageState extends State<ProfilePage> {
                 },
               ),
               const SizedBox(height: 20),
+
+              // Suspended Status Banner (for meter readers and consumers)
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) {
+                  final authBloc = context.read<AuthBloc>();
+                  final customUser = authBloc.getCurrentCustomUser();
+                  final isSuspended = customUser != null && 
+                      (customUser.userType == 'meter_reader' || customUser.userType == 'consumer') && 
+                      customUser.status?.toLowerCase() == 'suspended';
+                  
+                  if (isSuspended) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, 
+                            color: Colors.red.shade700, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Your account has been suspended. Please contact the administrator for assistance.',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
 
               // Profile Information
               _buildProfileInfoSection(),
@@ -254,6 +469,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileInfoSection() {
+    final isSuspended = _isSuspended();
+    
+    // For all users (consumers and meter readers), name and phone can be edited when in edit mode
+    // Suspended meter readers cannot edit
+    final canEditName = _isEditing && !isSuspended;
+    final canEditPhone = _isEditing && !isSuspended;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -296,7 +518,7 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Full Name',
             controller: _nameController,
             icon: Icons.person,
-            enabled: _isEditing,
+            enabled: canEditName,
           ),
           const SizedBox(height: 16),
 
@@ -305,7 +527,7 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Email',
             controller: _emailController,
             icon: Icons.email,
-            enabled: false, // Email usually can't be changed
+            enabled: false,
           ),
           const SizedBox(height: 16),
 
@@ -314,7 +536,8 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Phone Number',
             controller: _phoneController,
             icon: Icons.phone,
-            enabled: _isEditing,
+            enabled: canEditPhone,
+            keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 16),
 
@@ -323,33 +546,8 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Address',
             controller: _addressController,
             icon: Icons.location_on,
-            enabled: _isEditing,
+            enabled: false,
           ),
-
-          if (_isEditing) ...[
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A90E2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Save Changes',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -360,6 +558,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required TextEditingController controller,
     required IconData icon,
     required bool enabled,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,6 +575,7 @@ class _ProfilePageState extends State<ProfilePage> {
         TextField(
           controller: controller,
           enabled: enabled,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: const Color(0xFF6B7280), size: 20),
             contentPadding: const EdgeInsets.symmetric(
