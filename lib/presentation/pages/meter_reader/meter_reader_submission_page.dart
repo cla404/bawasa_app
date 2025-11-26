@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_bloc.dart';
+import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../domain/entities/consumer.dart';
 import '../../../services/camera_service.dart';
 import '../../../domain/usecases/meter_reader_usecases.dart';
+import '../../../core/config/supabase_config.dart';
 import 'package:get_it/get_it.dart';
 import 'dart:io';
 
 class MeterReaderSubmissionPage extends StatefulWidget {
   final VoidCallback? onBackToHome;
-  
+
   const MeterReaderSubmissionPage({super.key, this.onBackToHome});
 
   @override
@@ -31,11 +33,17 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
   bool _isLoading = false;
   bool _isSubmitting = false;
   List<Consumer> _consumers = [];
+  final TextEditingController _searchController = TextEditingController();
+  List<Consumer> _filteredConsumers = [];
 
   @override
   void initState() {
     super.initState();
     _loadConsumers();
+    // Refresh user status when page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthBloc>().add(RefreshUserStatusRequested());
+    });
   }
 
   @override
@@ -43,6 +51,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
     _previousReadingController.dispose();
     _presentReadingController.dispose();
     _remarksController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -60,6 +69,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
 
       setState(() {
         _consumers = consumers;
+        _filteredConsumers = consumers;
         _isLoading = false;
       });
     } catch (e) {
@@ -72,6 +82,42 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _fetchLatestReadingForConsumer(
+    String consumerId,
+    Consumer consumer,
+  ) async {
+    try {
+      // Fetch the latest meter reading for this consumer
+      final response = await SupabaseConfig.client
+          .from('bawasa_meter_readings')
+          .select('present_reading')
+          .eq('consumer_id', consumerId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response != null && response['present_reading'] != null) {
+        final latestReading = (response['present_reading'] as num).toDouble();
+        setState(() {
+          _previousReadingController.text = latestReading.toStringAsFixed(0);
+        });
+      } else {
+        // No previous readings found, use the consumer's current reading or 0
+        setState(() {
+          _previousReadingController.text = consumer.currentReading
+              .toStringAsFixed(0);
+        });
+      }
+    } catch (e) {
+      print('Error fetching latest reading: $e');
+      // Fallback to consumer's current reading if fetch fails
+      setState(() {
+        _previousReadingController.text = consumer.currentReading
+            .toStringAsFixed(0);
+      });
     }
   }
 
@@ -164,119 +210,308 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
     }
   }
 
-  void _selectConsumer() {
+  Future<void> _selectConsumer() async {
+    // Check if meter reader is suspended
+    final authBloc = context.read<AuthBloc>();
+    final customUser = authBloc.getCurrentCustomUser();
+    if (customUser != null &&
+        customUser.userType == 'meter_reader' &&
+        customUser.status?.toLowerCase() == 'suspended') {
+      // Show dialog indicating they are suspended
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red.shade700,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Account Suspended',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A3A5C),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'Your account has been suspended. You cannot submit new meter readings or select consumers.\n\nPlease contact the administrator for assistance.',
+              style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4A90E2),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    // Reset search when opening modal
+    _searchController.clear();
+    _filteredConsumers = List.from(_consumers);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select Consumer',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A3A5C),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _consumers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.person_off,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No consumers available',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A3A5C),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(
-                                'You have completed all meter readings for this month.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF6B7280),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              icon: const Icon(Icons.arrow_back),
-                              label: const Text('Go Back'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4A90E2),
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _consumers.length,
-                        itemBuilder: (context, index) {
-                          final consumer = _consumers[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              title: Text(
-                                consumer.fullName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A3A5C),
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Meter: ${consumer.waterMeterNo}'),
-                                  Text('Address: ${consumer.fullAddress}'),
-                                  Text(
-                                    'Current Reading: ${consumer.currentReading.toStringAsFixed(0)}',
-                                  ),
-                                ],
-                              ),
-                              onTap: () {
-                                setState(() {
-                                  _selectedConsumer = consumer;
-                                  _previousReadingController.text = consumer
-                                      .currentReading
-                                      .toStringAsFixed(0);
-                                });
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                          );
-                        },
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            String _searchQuery = '';
+
+            void _filterConsumers(String query) {
+              _searchQuery = query;
+              setModalState(() {
+                if (query.isEmpty) {
+                  _filteredConsumers = List.from(_consumers);
+                } else {
+                  _filteredConsumers = _consumers.where((consumer) {
+                    final name = consumer.fullName.toLowerCase();
+                    final meter = consumer.waterMeterNo.toLowerCase();
+                    final address = consumer.fullAddress.toLowerCase();
+                    final searchLower = query.toLowerCase();
+                    return name.contains(searchLower) ||
+                        meter.contains(searchLower) ||
+                        address.contains(searchLower);
+                  }).toList();
+                }
+              });
+            }
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Consumer',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A3A5C),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Search Bar
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, meter number, or address...',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF6B7280),
                       ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Color(0xFF6B7280),
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                setModalState(() {
+                                  _filterConsumers('');
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF4A90E2)),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.withOpacity(0.1),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setModalState(() {
+                        _filterConsumers(value);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _filteredConsumers.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _searchQuery.isNotEmpty
+                                      ? Icons.search_off
+                                      : Icons.person_off,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'No consumers found'
+                                      : 'No consumers available',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A3A5C),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                  ),
+                                  child: Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'Try adjusting your search terms'
+                                        : 'You have completed all meter readings for this month.',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    if (_searchQuery.isNotEmpty) {
+                                      _searchController.clear();
+                                      setModalState(() {
+                                        _filterConsumers('');
+                                      });
+                                    } else {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                                  icon: Icon(
+                                    _searchQuery.isNotEmpty
+                                        ? Icons.clear
+                                        : Icons.arrow_back,
+                                  ),
+                                  label: Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'Clear Search'
+                                        : 'Go Back',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4A90E2),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _filteredConsumers.length,
+                            itemBuilder: (context, index) {
+                              final consumer = _filteredConsumers[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  title: Text(
+                                    consumer.fullName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1A3A5C),
+                                    ),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Meter: ${consumer.waterMeterNo}'),
+                                      Text('Address: ${consumer.fullAddress}'),
+                                      Text(
+                                        'Current Reading: ${consumer.currentReading.toStringAsFixed(0)}',
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () async {
+                                    // Fetch the latest meter reading for this consumer
+                                    await _fetchLatestReadingForConsumer(
+                                      consumer.id,
+                                      consumer,
+                                    );
+                                    setState(() {
+                                      _selectedConsumer = consumer;
+                                      // Clear present reading and remarks when selecting a new consumer
+                                      _presentReadingController.clear();
+                                      _remarksController.clear();
+                                      _selectedPhoto = null;
+                                    });
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
   Future<void> _submitReading() async {
+    // Check if meter reader is suspended
+    final authBloc = context.read<AuthBloc>();
+    final customUser = authBloc.getCurrentCustomUser();
+    if (customUser != null &&
+        customUser.userType == 'meter_reader' &&
+        customUser.status?.toLowerCase() == 'suspended') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your account has been suspended. You cannot submit new meter readings. Please contact the administrator for assistance.',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     if (_selectedConsumer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -426,6 +661,52 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Suspended Status Banner
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final authBloc = context.read<AuthBloc>();
+                      final customUser = authBloc.getCurrentCustomUser();
+                      final isSuspended =
+                          customUser != null &&
+                          customUser.userType == 'meter_reader' &&
+                          customUser.status?.toLowerCase() == 'suspended';
+
+                      if (isSuspended) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.red.shade700,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Your account has been suspended. You cannot submit new meter readings.',
+                                  style: TextStyle(
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+
                   // Consumer Selection Card
                   _buildConsumerSelectionCard(),
                   const SizedBox(height: 24),
@@ -491,7 +772,7 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
             const Center(child: CircularProgressIndicator())
           else if (_selectedConsumer == null)
             GestureDetector(
-              onTap: _selectConsumer,
+              onTap: () => _selectConsumer(),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -555,7 +836,9 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
                         ),
                       ),
                       IconButton(
-                        onPressed: _selectConsumer,
+                        onPressed: () async {
+                          await _selectConsumer();
+                        },
                         icon: const Icon(Icons.edit, color: Color(0xFF2ECC71)),
                       ),
                     ],
@@ -670,49 +953,66 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
           const SizedBox(height: 24),
 
           // Submit Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitReading,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2ECC71),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-              child: _isSubmitting
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Submitting...',
-                          style: TextStyle(
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              final authBloc = context.read<AuthBloc>();
+              final customUser = authBloc.getCurrentCustomUser();
+              final isSuspended =
+                  customUser != null &&
+                  customUser.userType == 'meter_reader' &&
+                  customUser.status?.toLowerCase() == 'suspended';
+
+              return SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (_isSubmitting || isSuspended)
+                      ? null
+                      : _submitReading,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isSuspended
+                        ? Colors.grey
+                        : const Color(0xFF2ECC71),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: _isSubmitting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Submitting...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          isSuspended
+                              ? 'Account Suspended - Cannot Submit'
+                              : 'Submit Meter Reading',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    )
-                  : const Text(
-                      'Submit Meter Reading',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),

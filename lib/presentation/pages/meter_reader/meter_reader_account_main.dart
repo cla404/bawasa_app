@@ -22,11 +22,18 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _recentActivities = [];
   bool _isLoadingActivities = false;
+  int _pendingReadingsCount = 0;
+  bool _isLoadingPendingCount = false;
 
   @override
   void initState() {
     super.initState();
     _loadRecentActivities();
+    _loadPendingReadingsCount();
+    // Refresh user status when page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthBloc>().add(RefreshUserStatusRequested());
+    });
   }
 
   void _signOut() {
@@ -56,6 +63,27 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
         _isLoadingActivities = false;
       });
       print('Error loading recent activities: $e');
+    }
+  }
+
+  Future<void> _loadPendingReadingsCount() async {
+    setState(() {
+      _isLoadingPendingCount = true;
+    });
+
+    try {
+      final repository = GetIt.instance<MeterReadingRepository>();
+      final pendingConsumers = await repository.getConsumersForMeterReader();
+
+      setState(() {
+        _pendingReadingsCount = pendingConsumers.length;
+        _isLoadingPendingCount = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingPendingCount = false;
+      });
+      print('Error loading pending readings count: $e');
     }
   }
 
@@ -119,6 +147,7 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
         print(
           'MeterReaderAccountMain: User authenticated, building main content',
         );
+
         return BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             print(
@@ -131,6 +160,15 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                   backgroundColor: Colors.red,
                 ),
               );
+            } else if (state is AuthAuthenticated) {
+              // Check if status changed and show message
+              final customUser = context
+                  .read<AuthBloc>()
+                  .getCurrentCustomUser();
+              if (customUser != null && customUser.userType == 'meter_reader') {
+                // Status will be checked in UI components, no need to show message here
+                // as it might be annoying to show on every refresh
+              }
             }
           },
           child: Scaffold(
@@ -200,6 +238,10 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
                 return _buildUserInfoCard(user, isTablet);
               },
             ),
+            SizedBox(height: isTablet ? 32 : 24),
+
+            // Pending Readings Count Card
+            _buildPendingReadingsCard(isTablet),
             SizedBox(height: isTablet ? 32 : 24),
 
             // Quick Actions Section
@@ -316,6 +358,137 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
             tooltip: 'Sign Out',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingReadingsCard(bool isTablet) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to submission page when tapped
+        setState(() {
+          _selectedIndex = 1;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.all(isTablet ? 24 : 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF2ECC71).withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2ECC71).withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: isTablet ? 64 : 56,
+              height: isTablet ? 64 : 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2ECC71).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(isTablet ? 32 : 28),
+              ),
+              child: Icon(
+                Icons.assignment,
+                color: const Color(0xFF2ECC71),
+                size: isTablet ? 32 : 28,
+              ),
+            ),
+            SizedBox(width: isTablet ? 20 : 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Readings Needed',
+                    style: TextStyle(
+                      fontSize: isTablet ? 18 : 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                  SizedBox(height: isTablet ? 8 : 6),
+                  _isLoadingPendingCount
+                      ? Row(
+                          children: [
+                            SizedBox(
+                              width: isTablet ? 16 : 14,
+                              height: isTablet ? 16 : 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  const Color(0xFF2ECC71),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: isTablet ? 8 : 6),
+                            Text(
+                              'Loading...',
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '$_pendingReadingsCount',
+                              style: TextStyle(
+                                fontSize: isTablet ? 36 : 32,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2ECC71),
+                              ),
+                            ),
+                            SizedBox(width: isTablet ? 8 : 6),
+                            Text(
+                              _pendingReadingsCount == 1
+                                  ? 'reading'
+                                  : 'readings',
+                              style: TextStyle(
+                                fontSize: isTablet ? 16 : 14,
+                                color: const Color(0xFF6B7280),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                  SizedBox(height: isTablet ? 8 : 6),
+                  Row(
+                    children: [
+                      Text(
+                        'Tap to submit readings',
+                        style: TextStyle(
+                          fontSize: isTablet ? 14 : 12,
+                          color: const Color(0xFF2ECC71),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: isTablet ? 4 : 2),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: isTablet ? 14 : 12,
+                        color: const Color(0xFF2ECC71),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -619,6 +792,13 @@ class _MeterReaderAccountMainState extends State<MeterReaderAccountMain> {
           setState(() {
             _selectedIndex = index;
           });
+          // Refresh user status when navigating between tabs
+          context.read<AuthBloc>().add(RefreshUserStatusRequested());
+          // Refresh pending readings count when returning to home
+          if (index == 0) {
+            _loadPendingReadingsCount();
+            _loadRecentActivities();
+          }
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
