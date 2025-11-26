@@ -16,15 +16,6 @@ class BillingPage extends StatefulWidget {
 }
 
 class _BillingPageState extends State<BillingPage> {
-  String _selectedPeriod = 'Current';
-
-  final List<String> _periods = [
-    'Current',
-    'Last Month',
-    'Last 3 Months',
-    'Last 6 Months',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -95,10 +86,6 @@ class _BillingPageState extends State<BillingPage> {
                   children: [
                     // Current Bill Card
                     _buildCurrentBillCard(billingState),
-                    const SizedBox(height: 24),
-
-                    // Period Filter
-                    _buildPeriodFilter(),
                     const SizedBox(height: 24),
 
                     // Billing History
@@ -361,64 +348,6 @@ class _BillingPageState extends State<BillingPage> {
         ],
       ),
       child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  Widget _buildPeriodFilter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Filter Period',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A3A5C),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedPeriod,
-                isExpanded: true,
-                items: _periods.map((String period) {
-                  return DropdownMenuItem<String>(
-                    value: period,
-                    child: Text(period),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedPeriod = newValue;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

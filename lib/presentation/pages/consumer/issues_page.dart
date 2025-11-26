@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../services/camera_service.dart';
 import '../../../services/photo_upload_service.dart';
 import '../../../core/injection/injection_container.dart';
@@ -8,6 +9,9 @@ import '../../../domain/usecases/submit_issue_report.dart';
 import '../../../domain/usecases/get_issue_reports_by_consumer_id.dart';
 import '../../../domain/repositories/consumer_repository.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../../bloc/auth/auth_bloc.dart';
+import '../../bloc/auth/auth_event.dart';
+import '../../bloc/auth/auth_state.dart';
 
 class IssuesPage extends StatefulWidget {
   final VoidCallback? onBackToHome;
@@ -52,7 +56,7 @@ class _IssuesPageState extends State<IssuesPage> {
     'Other',
   ];
 
-  final List<String> _priorities = ['Low', 'Medium', 'High', 'Urgent'];
+  final List<String> _priorities = ['Low', 'Medium', 'High'];
 
   @override
   void initState() {
@@ -61,6 +65,20 @@ class _IssuesPageState extends State<IssuesPage> {
     _getIssueReportsByConsumerIdUseCase =
         sl<GetIssueReportsByConsumerIdUseCase>();
     _loadRecentIssues();
+    // Refresh user status when page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AuthBloc>().add(RefreshUserStatusRequested());
+      }
+    });
+  }
+
+  bool _isSuspended() {
+    final authBloc = context.read<AuthBloc>();
+    final customUser = authBloc.getCurrentCustomUser();
+    return customUser != null &&
+        customUser.userType == 'consumer' &&
+        customUser.status?.toLowerCase() == 'suspended';
   }
 
   @override
@@ -233,6 +251,19 @@ class _IssuesPageState extends State<IssuesPage> {
   }
 
   Future<void> _submitIssue() async {
+    // Check if consumer is suspended
+    if (_isSuspended()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your account has been suspended. You cannot submit issue reports.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_issueController.text.isEmpty || _descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -429,6 +460,45 @@ class _IssuesPageState extends State<IssuesPage> {
           ),
           const SizedBox(height: 20),
 
+          // Suspended Status Banner
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (_isSuspended()) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade300, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.red.shade700,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Your account has been suspended. You cannot submit issue reports.',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
           // Issue Type Dropdown
           const Text(
             'Issue Type',
@@ -442,8 +512,15 @@ class _IssuesPageState extends State<IssuesPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(
+                color: _isSuspended()
+                    ? Colors.grey.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+              ),
               borderRadius: BorderRadius.circular(12),
+              color: _isSuspended()
+                  ? Colors.grey.withOpacity(0.1)
+                  : Colors.transparent,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -452,16 +529,26 @@ class _IssuesPageState extends State<IssuesPage> {
                 items: _issueTypes.map((String type) {
                   return DropdownMenuItem<String>(
                     value: type,
-                    child: Text(type),
+                    child: Text(
+                      type,
+                      style: TextStyle(
+                        color: _isSuspended() ? Colors.grey : Colors.black,
+                      ),
+                    ),
                   );
                 }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedIssueType = newValue;
-                    });
-                  }
-                },
+                onChanged: _isSuspended()
+                    ? null
+                    : (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedIssueType = newValue;
+                          });
+                        }
+                      },
+                style: TextStyle(
+                  color: _isSuspended() ? Colors.grey : Colors.black,
+                ),
               ),
             ),
           ),
@@ -480,8 +567,15 @@ class _IssuesPageState extends State<IssuesPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(
+                color: _isSuspended()
+                    ? Colors.grey.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+              ),
               borderRadius: BorderRadius.circular(12),
+              color: _isSuspended()
+                  ? Colors.grey.withOpacity(0.1)
+                  : Colors.transparent,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -490,16 +584,26 @@ class _IssuesPageState extends State<IssuesPage> {
                 items: _priorities.map((String priority) {
                   return DropdownMenuItem<String>(
                     value: priority,
-                    child: Text(priority),
+                    child: Text(
+                      priority,
+                      style: TextStyle(
+                        color: _isSuspended() ? Colors.grey : Colors.black,
+                      ),
+                    ),
                   );
                 }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedPriority = newValue;
-                    });
-                  }
-                },
+                onChanged: _isSuspended()
+                    ? null
+                    : (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedPriority = newValue;
+                          });
+                        }
+                      },
+                style: TextStyle(
+                  color: _isSuspended() ? Colors.grey : Colors.black,
+                ),
               ),
             ),
           ),
@@ -517,6 +621,7 @@ class _IssuesPageState extends State<IssuesPage> {
           const SizedBox(height: 8),
           TextField(
             controller: _issueController,
+            enabled: !_isSuspended(),
             decoration: InputDecoration(
               hintText: 'Brief description of the issue',
               border: OutlineInputBorder(
@@ -527,6 +632,12 @@ class _IssuesPageState extends State<IssuesPage> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFF4A90E2)),
               ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+              ),
+              filled: _isSuspended(),
+              fillColor: Colors.grey.withOpacity(0.1),
             ),
           ),
           const SizedBox(height: 16),
@@ -543,6 +654,7 @@ class _IssuesPageState extends State<IssuesPage> {
           const SizedBox(height: 8),
           TextField(
             controller: _descriptionController,
+            enabled: !_isSuspended(),
             maxLines: 4,
             decoration: InputDecoration(
               hintText:
@@ -555,6 +667,12 @@ class _IssuesPageState extends State<IssuesPage> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFF4A90E2)),
               ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+              ),
+              filled: _isSuspended(),
+              fillColor: Colors.grey.withOpacity(0.1),
             ),
           ),
           const SizedBox(height: 16),
@@ -567,7 +685,10 @@ class _IssuesPageState extends State<IssuesPage> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: (_isSubmitting || _selectedImages.length != 5)
+              onPressed:
+                  (_isSubmitting ||
+                      _selectedImages.length != 5 ||
+                      _isSuspended())
                   ? null
                   : _submitIssue,
               style: ElevatedButton.styleFrom(
@@ -628,15 +749,17 @@ class _IssuesPageState extends State<IssuesPage> {
                       ],
                     )
                   : Text(
-                      _selectedImages.length == 5
-                          ? 'Submit Issue Report'
-                          : 'Submit Issue Report (${_selectedImages.length}/5 images)',
+                      _isSuspended()
+                          ? 'Account Suspended - Cannot Submit'
+                          : (_selectedImages.length == 5
+                                ? 'Submit Issue Report'
+                                : 'Submit Issue Report (${_selectedImages.length}/5 images)'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: _selectedImages.length == 5
-                            ? Colors.white
-                            : Colors.white70,
+                        color: _isSuspended() || _selectedImages.length != 5
+                            ? Colors.white70
+                            : Colors.white,
                       ),
                     ),
             ),
@@ -668,32 +791,40 @@ class _IssuesPageState extends State<IssuesPage> {
         // Add Image Button
         if (_selectedImages.length < 5)
           GestureDetector(
-            onTap: _showImageSourceDialog,
+            onTap: _isSuspended() ? null : _showImageSourceDialog,
             child: Container(
               width: double.infinity,
               height: 60,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: const Color(0xFF4A90E2),
+                  color: _isSuspended()
+                      ? Colors.grey.withOpacity(0.3)
+                      : const Color(0xFF4A90E2),
                   style: BorderStyle.solid,
                   width: 2,
                 ),
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFF4A90E2).withOpacity(0.05),
+                color: _isSuspended()
+                    ? Colors.grey.withOpacity(0.1)
+                    : const Color(0xFF4A90E2).withOpacity(0.05),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.add_photo_alternate,
-                    color: Color(0xFF4A90E2),
+                    color: _isSuspended()
+                        ? Colors.grey
+                        : const Color(0xFF4A90E2),
                     size: 24,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     'Add Image',
                     style: TextStyle(
-                      color: Color(0xFF4A90E2),
+                      color: _isSuspended()
+                          ? Colors.grey
+                          : const Color(0xFF4A90E2),
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -739,11 +870,11 @@ class _IssuesPageState extends State<IssuesPage> {
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () => _removeImage(index),
+                      onTap: _isSuspended() ? null : () => _removeImage(index),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
+                        decoration: BoxDecoration(
+                          color: _isSuspended() ? Colors.grey : Colors.red,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(

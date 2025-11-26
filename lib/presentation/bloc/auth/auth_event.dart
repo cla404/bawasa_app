@@ -62,3 +62,5 @@ class AuthStateChanged extends AuthEvent {
   @override
   List<Object?> get props => [user];
 }
+
+class RefreshUserStatusRequested extends AuthEvent {}

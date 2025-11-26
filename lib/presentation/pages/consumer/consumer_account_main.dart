@@ -9,6 +9,8 @@ import '../../bloc/consumption_bloc.dart';
 import '../../widgets/consumption_chart.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/entities/recent_activity.dart';
+import '../../../domain/usecases/billing_usecases.dart';
+import '../../../domain/entities/billing.dart';
 import 'meter_reading_page.dart';
 import 'billing_page.dart';
 import 'issues_page.dart';
@@ -25,8 +27,74 @@ class ConsumerAccountMain extends StatefulWidget {
 class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
   int _selectedIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Refresh user status on page load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AuthBloc>().add(RefreshUserStatusRequested());
+      }
+    });
+  }
+
   void _signOut() {
     context.read<AuthBloc>().add(SignOutRequested());
+  }
+
+  bool _isSuspended() {
+    final authBloc = context.read<AuthBloc>();
+    final customUser = authBloc.getCurrentCustomUser();
+    return customUser != null &&
+        customUser.userType == 'consumer' &&
+        customUser.status?.toLowerCase() == 'suspended';
+  }
+
+  Widget _buildSuspendedBanner(bool isTablet) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final authBloc = context.read<AuthBloc>();
+        final customUser = authBloc.getCurrentCustomUser();
+        final isSuspended =
+            customUser != null &&
+            customUser.userType == 'consumer' &&
+            customUser.status?.toLowerCase() == 'suspended';
+
+        if (!isSuspended) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isTablet ? 20 : 16),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.shade300, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red.shade700,
+                size: isTablet ? 28 : 24,
+              ),
+              SizedBox(width: isTablet ? 16 : 12),
+              Expanded(
+                child: Text(
+                  'Your account has been suspended. Please contact the administrator for assistance.',
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: isTablet ? 16 : 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -166,6 +234,10 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
             _buildHeader(isTablet),
             SizedBox(height: isTablet ? 24 : 20),
 
+            // Suspended Status Banner
+            _buildSuspendedBanner(isTablet),
+            if (_isSuspended()) SizedBox(height: isTablet ? 24 : 20),
+
             // User Info Card
             BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) {
@@ -176,6 +248,10 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                 return _buildUserInfoCard(user, isTablet);
               },
             ),
+            SizedBox(height: isTablet ? 32 : 24),
+
+            // Current Unpaid Bill Section
+            _buildCurrentUnpaidBillSection(isTablet),
             SizedBox(height: isTablet ? 32 : 24),
 
             // Consumption Chart Section
@@ -282,6 +358,347 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCurrentUnpaidBillSection(bool isTablet) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is! AuthAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final customUser = context.read<AuthBloc>().getCurrentCustomUser();
+        final waterMeterNo = customUser?.waterMeterNo;
+
+        if (waterMeterNo == null || waterMeterNo.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return FutureBuilder<Billing?>(
+          future: GetIt.instance<GetCurrentBill>().call(waterMeterNo),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Container(
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: isTablet ? 24 : 20,
+                    ),
+                    SizedBox(width: isTablet ? 12 : 8),
+                    Expanded(
+                      child: Text(
+                        'Failed to load current bill',
+                        style: TextStyle(
+                          fontSize: isTablet ? 16 : 14,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final currentBill = snapshot.data;
+
+            if (currentBill == null) {
+              // No unpaid bill
+              return Container(
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: isTablet ? 48 : 40,
+                      height: isTablet ? 48 : 40,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+                      ),
+                      child: Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: isTablet ? 24 : 20,
+                      ),
+                    ),
+                    SizedBox(width: isTablet ? 16 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'All Paid',
+                            style: TextStyle(
+                              fontSize: isTablet ? 18 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1A3A5C),
+                            ),
+                          ),
+                          SizedBox(height: isTablet ? 4 : 2),
+                          Text(
+                            'You have no unpaid bills',
+                            style: TextStyle(
+                              fontSize: isTablet ? 14 : 12,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Display current unpaid bill
+            final isOverdue = currentBill.isOverdue;
+            final statusColor = isOverdue ? Colors.red : Colors.orange;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 2; // Navigate to billing page
+                });
+              },
+              child: Container(
+                padding: EdgeInsets.all(isTablet ? 20 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: statusColor.withOpacity(0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: isTablet ? 48 : 40,
+                              height: isTablet ? 48 : 40,
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 24 : 20,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.receipt_long,
+                                color: statusColor,
+                                size: isTablet ? 24 : 20,
+                              ),
+                            ),
+                            SizedBox(width: isTablet ? 16 : 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Current Bill',
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 18 : 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF1A3A5C),
+                                  ),
+                                ),
+                                SizedBox(height: isTablet ? 4 : 2),
+                                Text(
+                                  currentBill.billingMonth,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 14 : 12,
+                                    color: const Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 12 : 10,
+                            vertical: isTablet ? 6 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isOverdue
+                                ? 'OVERDUE'
+                                : currentBill.paymentStatus.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: isTablet ? 12 : 10,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: isTablet ? 16 : 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Amount Due',
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            SizedBox(height: isTablet ? 4 : 2),
+                            Text(
+                              currentBill.formattedAmount,
+                              style: TextStyle(
+                                fontSize: isTablet ? 24 : 20,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Due Date',
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            SizedBox(height: isTablet ? 4 : 2),
+                            Text(
+                              currentBill.formattedDueDate,
+                              style: TextStyle(
+                                fontSize: isTablet ? 16 : 14,
+                                fontWeight: FontWeight.w600,
+                                color: isOverdue
+                                    ? Colors.red
+                                    : const Color(0xFF1A3A5C),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (currentBill.isPartiallyPaid) ...[
+                      SizedBox(height: isTablet ? 12 : 8),
+                      Container(
+                        padding: EdgeInsets.all(isTablet ? 12 : 10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.blue,
+                              size: isTablet ? 20 : 18,
+                            ),
+                            SizedBox(width: isTablet ? 8 : 6),
+                            Expanded(
+                              child: Text(
+                                'Partially paid: ₱${currentBill.amountPaid.toStringAsFixed(2)} of ${currentBill.formattedAmount}',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 13 : 11,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: isTablet ? 12 : 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'View Details',
+                          style: TextStyle(
+                            fontSize: isTablet ? 14 : 12,
+                            color: const Color(0xFF4A90E2),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: isTablet ? 4 : 2),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: isTablet ? 14 : 12,
+                          color: const Color(0xFF4A90E2),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -671,6 +1088,8 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
               }
 
               final isTablet = MediaQuery.of(context).size.width > 600;
+              final maxHeight = isTablet ? 400.0 : 300.0;
+
               return Container(
                 padding: EdgeInsets.all(isTablet ? 20 : 16),
                 decoration: BoxDecoration(
@@ -685,27 +1104,32 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    ...state.activities.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final activity = entry.value;
-                      return Column(
-                        children: [
-                          _buildActivityItem(
-                            icon: _getActivityIcon(activity.iconName),
-                            iconColor: _getActivityColor(activity.type),
-                            title: activity.title,
-                            subtitle: activity.subtitle,
-                            time: activity.timeAgo,
-                            isTablet: screenWidth > 600,
-                          ),
-                          if (index < state.activities.length - 1)
-                            const Divider(height: 24),
-                        ],
-                      );
-                    }).toList(),
-                  ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxHeight),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        ...state.activities.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final activity = entry.value;
+                          return Column(
+                            children: [
+                              _buildActivityItem(
+                                icon: _getActivityIcon(activity.iconName),
+                                iconColor: _getActivityColor(activity.type),
+                                title: activity.title,
+                                subtitle: activity.subtitle,
+                                time: activity.timeAgo,
+                                isTablet: screenWidth > 600,
+                              ),
+                              if (index < state.activities.length - 1)
+                                const Divider(height: 24),
+                            ],
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
                 ),
               );
             }
@@ -841,6 +1265,8 @@ class _ConsumerAccountMainState extends State<ConsumerAccountMain> {
           setState(() {
             _selectedIndex = index;
           });
+          // Refresh user status when navigating between tabs
+          context.read<AuthBloc>().add(RefreshUserStatusRequested());
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
