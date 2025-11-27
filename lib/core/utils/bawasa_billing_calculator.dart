@@ -1,5 +1,12 @@
 /// BAWASA Billing Calculation Utility
 /// Based on official BAWASA water bill form and payment scheme
+///
+/// Discount applies ONLY to registered voters based on years of service:
+/// - Year 1: 0% discount
+/// - Year 2: 25% discount
+/// - Year 3: 50% discount
+/// - Year 4: 75% discount
+/// - Year 5+: 100% discount (FREE)
 class BillingCalculation {
   final double consumption10OrBelow;
   final double amount10OrBelow;
@@ -8,6 +15,8 @@ class BillingCalculation {
   final double amountOver10;
   final double amountCurrentBilling;
   final int yearsOfService;
+  final bool isRegisteredVoter;
+  final double discountPercentage;
 
   BillingCalculation({
     required this.consumption10OrBelow,
@@ -17,6 +26,8 @@ class BillingCalculation {
     required this.amountOver10,
     required this.amountCurrentBilling,
     required this.yearsOfService,
+    required this.isRegisteredVoter,
+    required this.discountPercentage,
   });
 }
 
@@ -24,18 +35,22 @@ class BAWASABillingCalculator {
   // BAWASA Pricing Structure (based on official form)
   static const double ratePerCubicMeter = 30.0; // 30 pesos per cubic meter
 
-  /// Calculate billing based on consumption and years of service
-  /// Years of service determines the discount percentage:
-  /// - Year 1 (0-11 months): 0% discount
-  /// - Year 2 (12-23 months): 25% discount
-  /// - Year 3 (24-35 months): 50% discount
-  /// - Year 4 (36-47 months): 75% discount
-  /// - Year 5+ (48+ months): 100% discount (FREE)
+  /// Calculate billing based on consumption, years of service, and voter status
+  /// Discount ONLY applies to registered voters:
+  /// - Year 1: 0% discount
+  /// - Year 2: 25% discount
+  /// - Year 3: 50% discount
+  /// - Year 4: 75% discount
+  /// - Year 5+: 100% discount (FREE)
   static BillingCalculation calculateBilling(
     double consumption, {
     required int yearsOfService,
+    bool isRegisteredVoter = true, // Default to true for backward compatibility
   }) {
-    final discountPercentage = getDiscountPercentage(yearsOfService);
+    // Only registered voters get the discount
+    final discountPercentage = isRegisteredVoter 
+        ? getDiscountPercentage(yearsOfService)
+        : 0.0;
 
     // Calculate consumption breakdown
     final consumption10OrBelow = consumption < 10 ? consumption : 10.0;
@@ -44,7 +59,7 @@ class BAWASABillingCalculator {
     // Calculate amounts without discount
     final amount10OrBelow = consumption10OrBelow * ratePerCubicMeter;
 
-    // Apply discount for first 10 cubic meters ONLY
+    // Apply discount for first 10 cubic meters ONLY (if registered voter)
     final amount10OrBelowWithDiscount =
         amount10OrBelow * (1 - discountPercentage);
 
@@ -62,6 +77,8 @@ class BAWASABillingCalculator {
       amountOver10: amountOver10,
       amountCurrentBilling: amountCurrentBilling,
       yearsOfService: yearsOfService,
+      isRegisteredVoter: isRegisteredVoter,
+      discountPercentage: discountPercentage,
     );
   }
 
@@ -94,9 +111,33 @@ class BAWASABillingCalculator {
   }
 
   /// Get expected payment for 10 cubic meters based on years of service
-  static double getExpectedPaymentFor10CuM({required int yearsOfService}) {
+  static double getExpectedPaymentFor10CuM({
+    required int yearsOfService,
+    bool isRegisteredVoter = true,
+  }) {
     final baseAmount = 10.0 * ratePerCubicMeter;
-    final discountPercentage = getDiscountPercentage(yearsOfService);
+    final discountPercentage = isRegisteredVoter 
+        ? getDiscountPercentage(yearsOfService)
+        : 0.0;
     return baseAmount * (1 - discountPercentage);
+  }
+
+  /// Get discount info text for display
+  static String getDiscountInfoText({
+    required int yearsOfService,
+    required bool isRegisteredVoter,
+  }) {
+    if (!isRegisteredVoter) {
+      return 'No discount (not a registered voter)';
+    }
+    
+    final discountPercentage = getDiscountPercentage(yearsOfService);
+    if (discountPercentage == 1.0) {
+      return 'FREE (100% discount) - Year ${yearsOfService + 1}';
+    } else if (discountPercentage == 0.0) {
+      return 'No discount (Year 1)';
+    } else {
+      return '${(discountPercentage * 100).toInt()}% discount - Year ${yearsOfService + 1}';
+    }
   }
 }

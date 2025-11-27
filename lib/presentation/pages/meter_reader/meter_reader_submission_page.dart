@@ -90,20 +90,33 @@ class _MeterReaderSubmissionPageState extends State<MeterReaderSubmissionPage> {
     Consumer consumer,
   ) async {
     try {
-      // Fetch the latest meter reading for this consumer
+      // Fetch the latest meter reading for this consumer (including remarks to check for meter change)
       final response = await SupabaseConfig.client
           .from('bawasa_meter_readings')
-          .select('present_reading')
+          .select('present_reading, remarks')
           .eq('consumer_id', consumerId)
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
 
       if (response != null && response['present_reading'] != null) {
+        // Check if the meter was changed - if so, start from 0
+        final remarks = response['remarks'] as String? ?? '';
+        final meterWasChanged = remarks.contains('[METER_CHANGED]');
+        
+        if (meterWasChanged) {
+          // Meter was changed, new meter starts from 0
+          print('🔄 [MeterReader] Meter was changed for consumer $consumerId - starting from 0');
+          setState(() {
+            _previousReadingController.text = '0';
+          });
+        } else {
+          // Normal case - use the last present reading
         final latestReading = (response['present_reading'] as num).toDouble();
         setState(() {
           _previousReadingController.text = latestReading.toStringAsFixed(0);
         });
+        }
       } else {
         // No previous readings found, use the consumer's current reading or 0
         setState(() {

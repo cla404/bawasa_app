@@ -427,16 +427,23 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
       // Now create a billing record
       print('💰 [MeterReadingRepository] Creating billing record...');
 
-      // Get consumer's account creation date to calculate years of service
+      // Get consumer's account creation date and registered voter status
       int yearsOfService = 0;
+      bool isRegisteredVoter = false; // Default: no discount
       try {
         if (submission.consumerId != null) {
-          // Get the consumer record to find the account ID
+          // Get the consumer record to find the account ID and voter status
           final consumerResponse = await _supabase
               .from('consumers')
-              .select('consumer_id, created_at')
+              .select('consumer_id, created_at, registered_voter')
               .eq('id', submission.consumerId!)
               .single();
+
+          // Get registered voter status
+          isRegisteredVoter = consumerResponse['registered_voter'] == true;
+          print(
+            '🗳️ [MeterReadingRepository] Is registered voter: $isRegisteredVoter',
+          );
 
           DateTime? accountCreationDate;
 
@@ -476,9 +483,15 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
             print(
               '📅 [MeterReadingRepository] Years of service: $yearsOfService',
             );
+            if (isRegisteredVoter) {
             print(
               '📅 [MeterReadingRepository] Discount percentage: ${BAWASABillingCalculator.getDiscountPercentage(yearsOfService) * 100}%',
             );
+            } else {
+              print(
+                '📅 [MeterReadingRepository] No discount (not a registered voter)',
+              );
+            }
           }
         }
       } catch (e) {
@@ -486,14 +499,17 @@ class MeterReadingRepositoryImpl implements MeterReadingRepository {
           '⚠️ [MeterReadingRepository] Warning: Could not calculate years of service: $e',
         );
         print('⚠️ [MeterReadingRepository] Stack trace: ${StackTrace.current}');
-        // Continue with 0 years (no discount) if calculation fails
+        // Continue with 0 years and no discount if calculation fails
         yearsOfService = 0;
+        isRegisteredVoter = false;
       }
 
-      // Calculate billing using BAWASA calculator with years of service
+      // Calculate billing using BAWASA calculator with years of service and voter status
+      // Discount ONLY applies to registered voters
       final billingCalc = BAWASABillingCalculator.calculateBilling(
         consumption,
         yearsOfService: yearsOfService,
+        isRegisteredVoter: isRegisteredVoter,
       );
 
       // Calculate due date (30 days from now)
